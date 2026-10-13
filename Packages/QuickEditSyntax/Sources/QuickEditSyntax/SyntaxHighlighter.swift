@@ -24,6 +24,8 @@ public final class SyntaxHighlighter {
             engine = PlainTextEngine()
         case .delimited(let delimiter):
             engine = DelimitedEngine(delimiter: delimiter)
+        case .lexer(let lexer):
+            engine = LexerEngine(lexer: lexer)
         case .grammar(let name):
             if let grammar = GrammarStore.configuration(named: name) {
                 engine = TreeSitterEngine(grammar: grammar)
@@ -107,7 +109,7 @@ public final class SyntaxHighlighter {
         case .styled(let host):
             _ = GrammarStore.configuration(named: host)
             _ = GrammarStore.configuration(named: "css")
-        case .none, .delimited:
+        case .none, .delimited, .lexer:
             break
         }
     }

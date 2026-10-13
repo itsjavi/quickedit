@@ -71,6 +71,209 @@ public enum LanguageRegistry {
             highlighting: .grammar("markdown"), aliases: ["md", "markdown", "mdx"]
         ),
         Language(
+            id: "c", displayName: "C",
+            extensions: ["c", "h"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("c"), aliases: ["c", "h"]
+        ),
+        Language(
+            id: "cpp", displayName: "C++",
+            extensions: ["cpp", "cc", "cxx", "c++", "hpp", "hh", "hxx", "h++", "ipp", "inl", "tpp", "ixx", "cppm"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("cpp"), aliases: ["cpp", "c++", "cxx", "cc", "hpp"]
+        ),
+        Language(
+            id: "objc", displayName: "Objective-C",
+            extensions: ["m", "mm"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("objc"), aliases: ["objc", "objective-c", "objectivec", "obj-c", "objc++", "objective-c++"]
+        ),
+        Language(
+            id: "csharp", displayName: "C#",
+            extensions: ["cs", "csx"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("c_sharp"), aliases: ["cs", "csharp", "c#"]
+        ),
+        Language(
+            id: "java", displayName: "Java",
+            extensions: ["java"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("java"), aliases: ["java"]
+        ),
+        Language(
+            id: "kotlin", displayName: "Kotlin",
+            extensions: ["kt", "kts"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("kotlin"), aliases: ["kotlin", "kt", "kts"]
+        ),
+        Language(
+            id: "php", displayName: "PHP",
+            extensions: ["php", "phtml"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: ["php"],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("php"), aliases: ["php"]
+        ),
+        Language(
+            id: "ruby", displayName: "Ruby",
+            extensions: ["rb", "gemspec", "rake", "ru", "podspec", "rbw"], fileNames: ["Gemfile", "Rakefile", "Podfile", "Brewfile", "Guardfile", "Fastfile", "Appfile", "Matchfile", "Vagrantfile", "Dangerfile", "Capfile", "Berksfile", "Thorfile"], fileNamePatterns: [],
+            shebangInterpreters: ["ruby"],
+            lineComment: "#", blockComment: nil, prefersTabs: false,
+            highlighting: .grammar("ruby"), aliases: ["ruby", "rb"]
+        ),
+        Language(
+            id: "lua", displayName: "Lua",
+            extensions: ["lua"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: ["lua", "luajit"],
+            lineComment: "--", blockComment: BlockComment(open: "--[[", close: "]]"), prefersTabs: false,
+            highlighting: .grammar("lua"), aliases: ["lua"]
+        ),
+        Language(
+            id: "scss", displayName: "SCSS",
+            extensions: ["scss"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("scss"), aliases: ["scss"]
+        ),
+        Language(
+            id: "less", displayName: "Less",
+            extensions: ["less"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("scss"), aliases: ["less"]
+        ),
+        Language(
+            id: "sass", displayName: "Sass",
+            extensions: ["sass"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("sass"), aliases: ["sass"]
+        ),
+        Language(
+            id: "vue", displayName: "Vue",
+            extensions: ["vue"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: nil, blockComment: markupComment, prefersTabs: false,
+            highlighting: .grammar("vue"), aliases: ["vue"]
+        ),
+        Language(
+            id: "svelte", displayName: "Svelte",
+            extensions: ["svelte"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: nil, blockComment: markupComment, prefersTabs: false,
+            highlighting: .grammar("svelte"), aliases: ["svelte"]
+        ),
+        Language(
+            id: "graphql", displayName: "GraphQL",
+            extensions: ["graphql", "gql", "graphqls"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "#", blockComment: nil, prefersTabs: false,
+            highlighting: .grammar("graphql"), aliases: ["graphql", "gql"]
+        ),
+        Language(
+            id: "proto", displayName: "Protocol Buffers",
+            extensions: ["proto"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("proto"), aliases: ["proto", "protobuf"]
+        ),
+        Language(
+            id: "terraform", displayName: "Terraform",
+            extensions: ["tf", "tfvars"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "#", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("terraform"), aliases: ["terraform", "tf", "tfvars"]
+        ),
+        Language(
+            id: "hcl", displayName: "HCL",
+            extensions: ["hcl"], fileNames: [".terraformrc", "terraform.rc"], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "#", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("hcl"), aliases: ["hcl"]
+        ),
+        Language(
+            id: "zig", displayName: "Zig",
+            extensions: ["zig", "zon"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: nil, prefersTabs: false,
+            highlighting: .grammar("zig"), aliases: ["zig"]
+        ),
+        Language(
+            id: "dart", displayName: "Dart",
+            extensions: ["dart"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("dart"), aliases: ["dart"]
+        ),
+        Language(
+            id: "powershell", displayName: "PowerShell",
+            extensions: ["ps1", "psm1", "psd1"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: ["pwsh", "powershell"],
+            lineComment: "#", blockComment: BlockComment(open: "<#", close: "#>"), prefersTabs: false,
+            highlighting: .grammar("powershell"), aliases: ["powershell", "ps1", "pwsh", "posh"]
+        ),
+        Language(
+            id: "metal", displayName: "Metal",
+            extensions: ["metal"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("cpp"), aliases: ["metal"]
+        ),
+        Language(
+            id: "glsl", displayName: "GLSL",
+            extensions: ["glsl", "vert", "frag", "geom", "comp", "tesc", "tese"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("glsl"), aliases: ["glsl"]
+        ),
+        Language(
+            id: "cmake", displayName: "CMake",
+            extensions: ["cmake"], fileNames: ["CMakeLists.txt"], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "#", blockComment: nil, prefersTabs: false,
+            highlighting: .grammar("cmake"), aliases: ["cmake"]
+        ),
+        Language(
+            id: "nix", displayName: "Nix",
+            extensions: ["nix"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "#", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("nix"), aliases: ["nix"]
+        ),
+        Language(
+            id: "spicedb", displayName: "SpiceDB Schema",
+            extensions: ["zed"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .grammar("spicedb"), aliases: ["zed", "spicedb"]
+        ),
+        Language(
+            id: "xcconfig", displayName: "Xcode Configuration",
+            extensions: ["xcconfig"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: nil, prefersTabs: false,
+            highlighting: .lexer(.xcconfig), aliases: ["xcconfig"]
+        ),
+        Language(
+            id: "strings", displayName: "Strings",
+            extensions: ["strings"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .lexer(.appleStrings), aliases: ["strings"]
+        ),
+        Language(
+            id: "pbxproj", displayName: "Xcode Project",
+            extensions: ["pbxproj"], fileNames: [], fileNamePatterns: [],
+            shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .lexer(.openStep), aliases: ["pbxproj"]
+        ),
+        Language(
             id: "csv", displayName: "CSV",
             extensions: ["csv"], fileNames: [], fileNamePatterns: [], shebangInterpreters: [],
             lineComment: nil, blockComment: nil, prefersTabs: false,
@@ -110,7 +313,7 @@ public enum LanguageRegistry {
         ),
         Language(
             id: "yaml", displayName: "YAML",
-            extensions: ["yaml", "yml", "cff"], fileNames: [".clang-format", ".clang-tidy", ".yamllint"],
+            extensions: ["yaml", "yml", "cff", "zaml"], fileNames: [".clang-format", ".clang-tidy", ".yamllint"],
             fileNamePatterns: [], shebangInterpreters: [],
             lineComment: "#", blockComment: nil, prefersTabs: false,
             highlighting: .grammar("yaml"), aliases: ["yaml", "yml"]
@@ -273,7 +476,11 @@ public enum LanguageRegistry {
 
     /// Detects a file's language: exact file name, then file name pattern, then extension, then the `#!`
     /// interpreter on the first line; plain text when nothing matches. `fileName` may be a full path.
-    public static func detect(fileName: String, firstLine: String?) -> Language {
+    ///
+    /// `content`, the start of the text (about 8 KB is plenty), refines ambiguous extensions: a `.h` header is
+    /// Objective-C, C++ or C by what it declares. Without it `.h` is C. When `firstLine` is nil it's read from
+    /// `content`.
+    public static func detect(fileName: String, firstLine: String?, content: String? = nil) -> Language {
         let name = (fileName as NSString).lastPathComponent
         let lowercased = name.lowercased()
         if let language = index.byFileName[lowercased] {
@@ -283,12 +490,30 @@ public enum LanguageRegistry {
             return language
         }
         if let language = extensionLanguage(lowercased) {
+            if lowercased.hasSuffix(".h"), let content {
+                return headerLanguage(content)
+            }
             return language
         }
+        let firstLine = firstLine ?? content.map { String($0.prefix(while: { !$0.isNewline })) }
         if let interpreter = firstLine.flatMap(shebangInterpreter), let language = index.byInterpreter(interpreter) {
             return language
         }
         return plainText
+    }
+
+    /// Objective-C, C++ or C for a header's text.
+    static func headerLanguage(_ content: String) -> Language {
+        let text = String(content.prefix(8 * 1024))
+        func found(_ pattern: String) -> Bool {
+            text.range(of: pattern, options: [.regularExpression]) != nil
+        }
+        let objectiveC = #"(?m)^\s*(@(interface|implementation|protocol|import|class|end)\b|#import\b|NS_ASSUME_NONNULL_BEGIN)"#
+        let cpp =
+            #"(?m)(^\s*((class|namespace)\b|template\s*<|using\s+namespace\b|(public|private|protected)\s*:)|std::|^\s*#include\s*<(iostream|string|vector|memory|map|unordered_map|functional|optional|utility|algorithm|array|cstdint|cstddef|cstdio|cstdlib|cstring|type_traits)>)"#
+        if found(objectiveC), let language = index.byID["objc"] { return language }
+        if found(cpp), let language = index.byID["cpp"] { return language }
+        return index.byID["c"] ?? plainText
     }
 
     /// The language for a Markdown fenced code info string (```` ```ts ````, ```` ```{.python} ````,

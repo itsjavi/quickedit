@@ -56,4 +56,6 @@ enum Highlighting: Sendable, Hashable {
     case delimited(UInt16)
     /// A Lumiose component: the host grammar ("tsx", "javascript") with `<style>` blocks highlighted as CSS.
     case styled(String)
+    /// A small hand-written lexer (Xcode configuration, strings and project files).
+    case lexer(SimpleLexer)
 }

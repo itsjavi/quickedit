@@ -35,6 +35,9 @@ final class GrammarConfiguration: Sendable {
     let injectionLanguageCapture: Int?
     /// Injection settings by pattern index.
     let injectionPatterns: [InjectionPattern]
+    /// Predicates evaluated here (`#lua-match?`, `#has-ancestor?`, …) by pattern index.
+    let highlightPredicates: [[CustomPredicate]]
+    let injectionPredicates: [[CustomPredicate]]
     /// Fold rules by node symbol (see `FoldRules`).
     let foldRules: [Int: [FoldRules.Rule]]
 
@@ -47,6 +50,7 @@ final class GrammarConfiguration: Sendable {
         if let source = VendoredGrammars.highlightsQuery(named: name) {
             let query = try Self.compile(source, language: language, grammar: name, kind: "highlights")
             highlights = query
+            highlightPredicates = CustomPredicate.compile(query)
             highlightCodes = (0..<query.captureCount).map { index in
                 switch query.captureName(for: index).flatMap(CaptureMapping.style(forCapture:)) {
                 case nil: nil
@@ -57,6 +61,7 @@ final class GrammarConfiguration: Sendable {
         } else {
             highlights = nil
             highlightCodes = []
+            highlightPredicates = []
         }
 
         if let source = VendoredGrammars.injectionsQuery(named: name) {
@@ -66,11 +71,13 @@ final class GrammarConfiguration: Sendable {
             injectionContentCapture = names.firstIndex(of: "injection.content")
             injectionLanguageCapture = names.firstIndex(of: "injection.language")
             injectionPatterns = (0..<query.patternCount).map { Self.injectionPattern(query.predicates(for: $0)) }
+            injectionPredicates = CustomPredicate.compile(query)
         } else {
             injections = nil
             injectionContentCapture = nil
             injectionLanguageCapture = nil
             injectionPatterns = []
+            injectionPredicates = []
         }
 
         foldRules = FoldRules.symbols(for: name, in: language)

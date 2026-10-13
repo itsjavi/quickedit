@@ -18,10 +18,12 @@ A native macOS code viewer and editor for small, quick edits: a modern TextEdit,
   files hidden until you show them), the folder's files as tabs of one window, ⌘P to open any file by name, and New
   File, New Folder, Rename, Move (drag) and Move to Trash in the tree. Open files follow renames and moves.
 - **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, [Lumiose](https://itsjavi.com/lumiose/) components (`.stsx`/`.sjsx`,
-  with their `<style>` blocks as CSS), CSS, HTML, Markdown, CSV/TSV (rainbow columns), JSON/JSONC/JSON Lines, YAML,
-  TOML, Go (+ `go.mod`), Rust, Python, Swift, GDScript and Godot resources and shaders, Dockerfile, XML (plists, SVG,
-  Xcode files), INI and config files, shell scripts, Makefiles, SQL, `.env`, ignore files and diffs. Logs and `.txt`
-  open as plain text.
+  with their `<style>` blocks as CSS), CSS, SCSS/Sass/Less, HTML, Vue, Svelte, Markdown, CSV/TSV (rainbow columns),
+  JSON/JSONC/JSON Lines, YAML, TOML, GraphQL, Protocol Buffers, Terraform/HCL, Nix, SpiceDB schemas, C, C++,
+  Objective-C (`.h` by content), C#, Java, Kotlin, Swift, Go (+ `go.mod`), Rust, Zig, Dart, Python, Ruby, PHP, Lua,
+  PowerShell, Metal and GLSL shaders, GDScript and Godot resources and shaders, Dockerfile, CMake, XML (plists, SVG,
+  Xcode files), Xcode `.xcconfig`, `.strings` and `.pbxproj`, INI and config files, shell scripts, Makefiles, SQL,
+  `.env`, ignore files and diffs. Logs and `.txt` open as plain text.
 - **Lines.** Line numbers, current-line highlight, Go to Line (⌘L), move lines (⌃⌘↑/↓), duplicate (⇧⌘D), delete
   (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off.
 - **Code folding** for JSON, CSS, YAML, TOML, JS/TS/TSX, Lumiose, Go, Rust, Python, Swift, Markdown, HTML and XML:

@@ -128,6 +128,26 @@ struct IncrementalTests {
             source: LumioseTests.counter + LumioseTests.layout.replacingOccurrences(of: "import type { LayoutProps } from \"lumiose\";\n", with: ""),
             snippets: ["x", " ", "\n", "<style>", "</style>", "$accent", "{", "}", "'", "\"", "/*", "*/", "<p>"]),
         Document(
+            language: "cpp",
+            source: MoreLanguagesTests.fixtures.first { $0.language == "cpp" }!.source,
+            snippets: ["x", " ", "\n", "{", "}", "<", ">", "::", "\"", "/*", "*/", "//", "template <typename T>", ";"]),
+        Document(
+            language: "ruby",
+            source: MoreLanguagesTests.fixtures.first { $0.language == "ruby" }!.source,
+            snippets: ["x", " ", "\n", "end", "def a\n", "do |x|", "\"", "#{", "}", "#", ":sym", "  "]),
+        Document(
+            language: "php",
+            source: MoreLanguagesTests.fixtures.first { $0.language == "php" }!.source,
+            snippets: ["x", " ", "\n", "<?php", "?>", "$a", "{", "}", "'", "\"", "<p>", "/*", "*/"]),
+        Document(
+            language: "vue",
+            source: MoreLanguagesTests.fixtures.first { $0.language == "vue" }!.source,
+            snippets: ["x", " ", "\n", "<script>", "</script>", "{{", "}}", "<div>", "</div>", "\"", ":a=", "@click="]),
+        Document(
+            language: "strings",
+            source: "/* Header */\n\"a\" = \"b %@\";\n// note\n\"c\" = \"d\\n\";\nkey = \"e\";\n",
+            snippets: ["x", " ", "\n", "\"", "/*", "*/", "//", "=", ";", "%d", "\\"]),
+        Document(
             language: "csv",
             source: "a,b,c\n1,\"x, y\",3\n4,5,6\n",
             snippets: ["x", ",", "\"", "\n", "\"\""]),
