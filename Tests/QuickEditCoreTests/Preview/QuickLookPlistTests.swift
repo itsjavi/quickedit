@@ -42,7 +42,10 @@ import UniformTypeIdentifiers
     @Test func extensionPointsAndPrincipalClasses() throws {
         let preview = try #require(try Self.plist("QuickLook/Info.plist")["NSExtension"] as? [String: Any])
         #expect(preview["NSExtensionPointIdentifier"] as? String == "com.apple.quicklook.preview")
-        #expect(preview["NSExtensionPrincipalClass"] as? String == "QuickEditQuickLook.PreviewProvider")
+        #expect(preview["NSExtensionPrincipalClass"] as? String == "QuickEditQuickLook.PreviewViewController")
+        // View-based: Finder's preview pane ignores data-based previews.
+        let attributes = try #require(preview["NSExtensionAttributes"] as? [String: Any])
+        #expect(attributes["QLIsDataBasedPreview"] as? Bool == false)
         let thumbnail = try #require(try Self.plist("QuickLook/Thumbnail-Info.plist")["NSExtension"] as? [String: Any])
         #expect(thumbnail["NSExtensionPointIdentifier"] as? String == "com.apple.quicklook.thumbnail")
         #expect(thumbnail["NSExtensionPrincipalClass"] as? String == "QuickEditThumbnail.ThumbnailProvider")

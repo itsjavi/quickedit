@@ -8,7 +8,6 @@
 	<string>QuickEdit Text Preview</string>
 	<key>CFBundleExecutable</key>
 	<string>QuickEditQuickLook</string>
-	<!-- scripts/build-app.sh sets the identifier (<app bundle id>.quicklook) and the version keys from the app's. -->
 	<key>CFBundleIdentifier</key>
 	<string>com.itsjavi.quickedit.quicklook</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -27,25 +26,19 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Javi Aguilar</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>QLIsDataBasedPreview</key>
-			<true/>
-			<!-- Text types without a system text preview or thumbnail (decision-5). Keep in sync with Thumbnail-Info.plist. -->
+			<false/>
 			<key>QLSupportedContentTypes</key>
 			<array>
-				<!-- .ts: TypeScript sources share it with MPEG-2 transport stream video. -->
 				<string>public.mpeg-2-transport-stream</string>
-				<!-- System types conforming only to public.text, which the built-in text preview skips. -->
 				<string>public.yaml</string>
 				<string>com.itsjavi.quickedit.yaml-variant</string>
 				<string>public.toml</string>
 				<string>public.css</string>
-				<!-- Lumiose components, declared in the app's Info.plist. -->
 				<string>com.itsjavi.lumiose.stsx</string>
 				<string>com.itsjavi.lumiose.sjsx</string>
 			</array>
@@ -55,7 +48,9 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.quicklook.preview</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>QuickEditQuickLook.PreviewProvider</string>
+		<string>QuickEditQuickLook.PreviewViewController</string>
 	</dict>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Javi Aguilar</string>
 </dict>
 </plist>

@@ -23,11 +23,12 @@ final class ThumbnailProvider: QLThumbnailProvider {
         switch result {
         case .text(let preview):
             let lines = TextThumbnail.lines(of: preview.text)
+            // Like the system's text thumbnails: follow the appearance, no extension badge.
+            let dark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
             let reply = QLThumbnailReply(contextSize: TextThumbnail.pageSize(fitting: request.maximumSize)) { context in
-                TextThumbnail.draw(lines, in: context, rect: context.boundingBoxOfClipPath)
+                TextThumbnail.draw(lines, in: context, rect: context.boundingBoxOfClipPath, dark: dark)
                 return true
             }
-            reply.extensionBadge = url.pathExtension.uppercased()
             handler(reply, nil)
         case .transportStream, .binary:
             provideVideoFrame(for: request, handler)

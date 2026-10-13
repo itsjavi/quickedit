@@ -163,16 +163,4 @@ import Testing
 
     // MARK: HTML
 
-    @Test func htmlEscapesTheText() {
-        let preview = TextPreview(text: "a < b && \"c\" > d", encoding: .utf8, isTruncated: false)
-        let html = TextPreviewHTML.document(for: preview)
-        #expect(html.contains("<pre>a &lt; b &amp;&amp; &quot;c&quot; &gt; d</pre>"))
-        #expect(!html.contains("class=\"note\""))
-    }
-
-    @Test func htmlNotesTruncation() {
-        let preview = TextPreview(text: String(repeating: "x", count: 2048), encoding: .utf8, isTruncated: true)
-        let html = TextPreviewHTML.document(for: preview, totalByteCount: 5_000_000)
-        #expect(html.contains("class=\"note\">Showing the first 2 KB of 5 MB."))
-    }
 }

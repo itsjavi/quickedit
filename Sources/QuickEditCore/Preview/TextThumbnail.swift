@@ -48,7 +48,8 @@ public enum TextThumbnail {
     }
 
     /// Draws the page and `lines` over the whole of `rect` in `context` (Core Graphics coordinates, origin bottom left).
-    public static func draw(_ lines: [String], in context: CGContext, rect: CGRect) {
+    /// `dark` draws light text on a dark page, as the system's own text thumbnails do in dark mode.
+    public static func draw(_ lines: [String], in context: CGContext, rect: CGRect, dark: Bool = false) {
         let margin = (rect.width * 0.06).rounded()
         let lineHeight = (rect.height - 2 * margin) / CGFloat(lineCount)
         let font = CTFontCreateUIFontForLanguage(.userFixedPitch, lineHeight / 1.25, nil)
@@ -57,10 +58,10 @@ public enum TextThumbnail {
         context.saveGState()
         defer { context.restoreGState() }
 
-        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.setFillColor(CGColor(gray: dark ? 0.12 : 1, alpha: 1))
         context.fill(rect)
         let hairline = max(1, rect.width / 512)
-        context.setStrokeColor(CGColor(gray: 0, alpha: 0.18))
+        context.setStrokeColor(CGColor(gray: dark ? 1 : 0, alpha: dark ? 0.12 : 0.18))
         context.setLineWidth(hairline)
         context.stroke(rect.insetBy(dx: hairline / 2, dy: hairline / 2))
 
@@ -68,7 +69,7 @@ public enum TextThumbnail {
         context.textMatrix = .identity
         let attributes: [NSAttributedString.Key: Any] = [
             NSAttributedString.Key(kCTFontAttributeName as String): font,
-            NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.13, alpha: 1),
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: dark ? 0.86 : 0.13, alpha: 1),
         ]
         let ascent = CTFontGetAscent(font)
         for (index, text) in lines.prefix(lineCount).enumerated() where !text.isEmpty {
