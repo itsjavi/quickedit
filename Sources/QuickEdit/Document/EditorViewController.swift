@@ -14,7 +14,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     let preview = PreviewModel()
     let lineIndex = LineIndex()
     private var settings: AppSettings { .shared }
-    private var state: EditorState { document.state }
+    var state: EditorState { document.state }
 
     init(document: TextDocument) {
         self.document = document
@@ -121,6 +121,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
                 NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
             }
             if changed { state.mode = settings.editorMode }
+            preview.onTranscribe = kind == .markdown ? { [weak self] source in self?.beginTranscription(source: source) } : nil
         } else {
             state.mode = .edit
         }
@@ -177,6 +178,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let modes: [Selector: EditorMode] = [#selector(showEditorOnly(_:)): .edit, #selector(showSplit(_:)): .split, #selector(showPreviewOnly(_:)): .preview]
+        if menuItem.action == #selector(recordVoiceNote(_:)) {
+            menuItem.title = state.voiceRecorder.isRecording ? "Show Voice Recorder" : "Record Voice Note"
+            return canRecordVoiceNote
+        }
         if let action = menuItem.action, let mode = modes[action] {
             menuItem.state = state.previewKind != nil && state.mode == mode ? .on : .off
             return state.previewKind != nil
@@ -438,7 +443,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
-    private func presentAlert(_ message: String, _ information: String) {
+    func presentAlert(_ message: String, _ information: String) {
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = information

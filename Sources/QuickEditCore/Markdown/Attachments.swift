@@ -41,8 +41,9 @@ public enum Attachments {
 
     /// The link destination for `fileURL` as written in the document at `documentURL`: relative and percent-encoded.
     public static func destination(for fileURL: URL, fromDocument documentURL: URL) -> String {
-        let directory = documentURL.deletingLastPathComponent().standardizedFileURL.path
-        let target = fileURL.standardizedFileURL.path
+        // Canonical paths on both sides: /tmp and /private/tmp are the same folder.
+        let directory = documentURL.deletingLastPathComponent().canonical.path
+        let target = fileURL.canonical.path
         if target.hasPrefix(directory + "/") {
             return encodeDestination(String(target.dropFirst(directory.count + 1)))
         }

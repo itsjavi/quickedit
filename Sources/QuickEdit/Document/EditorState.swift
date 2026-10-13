@@ -30,6 +30,12 @@ enum IndentationSource: String {
     var mode = EditorMode.edit
     /// The preview's Remote Content toggle (this window only, off by default).
     var allowsRemoteContent = false
+    let voiceRecorder = VoiceRecorder()
+    var showsVoiceRecorder = false
+    /// Link destination of the clip being transcribed (shows the transcription sheet).
+    var transcribeSource: String?
+    /// The audio file behind `transcribeSource`.
+    var transcribeURL: URL?
 
     var isReadOnly: Bool { readOnlyReason != nil }
 }

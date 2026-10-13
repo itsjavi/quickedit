@@ -25,6 +25,12 @@ struct StatusBarView: View {
                     .help(reason)
             }
             Spacer(minLength: 8)
+            if state.previewKind == .markdown, controller?.canRecordVoiceNote == true {
+                VoiceNoteButton(recorder: state.voiceRecorder, showsPanel: Binding(get: { state.showsVoiceRecorder }, set: { state.showsVoiceRecorder = $0 })) {
+                    controller?.recordVoiceNote(nil)
+                }
+                .labelStyle(.iconOnly)
+            }
             if state.previewKind != nil {
                 previewControls
             }
@@ -42,6 +48,11 @@ struct StatusBarView: View {
         .frame(maxWidth: .infinity)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
+        .sheet(isPresented: Binding(get: { state.transcribeSource != nil }, set: { if !$0 { state.transcribeSource = nil } })) {
+            if let source = state.transcribeSource, let audio = state.transcribeURL {
+                TranscriptionSheet(audioURL: audio) { text in controller?.insertTranscript(text, forSource: source) }
+            }
+        }
     }
 
     private var position: String {

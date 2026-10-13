@@ -163,7 +163,7 @@ struct VoiceNoteButton: View {
                 Label("Record Voice Note", systemImage: "mic")
             }
         }
-        .help(recorder.isRecording ? "Recording a voice note" : "Record a voice note into this note (⌃⌘R)")
+        .help(recorder.isRecording ? "Recording a voice note" : "Record a voice note into this file (⌃⌘R)")
         .popover(isPresented: $showsPanel, arrowEdge: .bottom) {
             VoiceRecorderPanel(recorder: recorder)
         }
@@ -177,8 +177,8 @@ struct VoiceRecorderPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if recorder.permissionDenied {
-                Label("NoteMD can't use the microphone", systemImage: "mic.slash").font(.headline)
-                Text("Allow NoteMD in System Settings › Privacy & Security › Microphone, then try again.")
+                Label("QuickEdit can’t use the microphone", systemImage: "mic.slash").font(.headline)
+                Text("Allow QuickEdit in System Settings › Privacy & Security › Microphone, then try again.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Open Microphone Settings") {

@@ -101,6 +101,7 @@ enum MainMenu {
         lines.addItem(item("Sort Lines", #selector(EditorTextView.sortLines(_:))))
         menu.addItem(submenu(lines, title: "Lines"))
         menu.addItem(item("Toggle Comment", #selector(EditorTextView.toggleComment(_:)), "/"))
+        menu.addItem(item("Record Voice Note", #selector(EditorViewController.recordVoiceNote(_:)), "r", [.command, .control]))
 
         let transformations = NSMenu(title: "Transformations")
         transformations.addItem(item("Make Upper Case", #selector(NSResponder.uppercaseWord(_:))))

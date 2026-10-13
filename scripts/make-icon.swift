@@ -1,18 +1,20 @@
 #!/usr/bin/env swift
 // Draws QuickEdit's Icon Composer icon: the layer PNGs (AppIcon.icon/Assets/*.png, on a 1024 pt canvas) and the
-// icon.json that stacks them over a gradient fill with Liquid Glass, in light and dark.
+// icon.json that stacks them over a gradient fill with Liquid Glass, in light and dark. macOS derives the tinted and
+// clear styles from these; check all six with Icon Composer's `ictool --rendition` (Default, Dark, Tinted*, Clear*).
 // Usage: swift scripts/make-icon.swift [--concept 1|2|3] [Resources/AppIcon.icon]   (or `make icon`)
 //
 // Three concepts live here so each one stays reproducible; `defaultConcept` is the shipped icon.
 //   1. Spark braces: white `{ }` with a yellow lightning bolt between them, on electric violet.
 //   2. Code pane: a dark editor pane with syntax-colored, indented code and a bright caret, on sunset orange.
-//   3. Dash page: a forward-leaning page with a `</>` tag and speed streaks behind it, on cobalt blue.
+//   3. Dash page: a forward-leaning page with a coral `</>` tag and speed streaks behind it, on white (light)
+//      or black (dark), so the icon follows the system appearance.
 //
 // Unlike NoteMD's script, this one also writes icon.json, because each concept has its own fill and layers.
 // A tweak made in Icon Composer is overwritten by the next redraw: port it into the constants below.
 import AppKit
 
-let defaultConcept = 1
+let defaultConcept = 3
 
 var arguments = Array(CommandLine.arguments.dropFirst())
 var conceptNumber = defaultConcept
@@ -139,6 +141,9 @@ struct Concept {
     let darkFill: [String]
     /// Listed front to back, as in icon.json: the first layer is drawn on top.
     let layers: [(name: String, draw: () -> Void)]
+    /// Per-appearance colors that replace a layer's own (top-to-bottom gradient stops), keyed by layer name.
+    /// The layer's PNG then only supplies its shape.
+    var layerFills: [String: (light: [String], dark: [String])] = [:]
 }
 
 /// 1. Spark braces: code (`{ }`) plus speed (a bolt), the whole app in one glyph that survives 16 pt.
@@ -232,6 +237,10 @@ func dashPage() -> Concept {
     let tagStroke = unit * 0.08
     let streakHeight = unit * 0.07
     let streaks: [(y: CGFloat, length: CGFloat)] = [(0.70, 0.30), (0.50, 0.42), (0.30, 0.24)]  // y in page heights
+    // Neutral field, white in light mode and black in dark mode. icon.json turns the page grey on white and
+    // near-white on black so it never vanishes into the fill; the coral tag and streaks read on both.
+    let paper = (light: ["#E4E7EC", "#C5CAD4"], dark: ["#FFFFFF", "#DDE1E8"])
+    let coral = ("#FF7A45", "#F2386E"), streak = ("#FFA27A", "#FF6F6A")
 
     let page = NSRect(x: art.maxX - pageSize.width - unit * 0.04, y: art.midY - pageSize.height / 2,
                       width: pageSize.width, height: pageSize.height)
@@ -252,15 +261,15 @@ func dashPage() -> Concept {
         return p
     }
     return Concept(
-        fill: ["#38C4FF", "#1C3FD6"], darkFill: ["#1F86C4", "#0D237E"],
+        fill: ["#FFFFFF", "#ECEDF1"], darkFill: ["#2A2B30", "#050506"],
         layers: [
             ("tag", {
                 gradientFill(leaned(outline(tagCenterline(), width: tagStroke), slant: slant, axis: page.midY),
-                             "#FF7A45", "#F2386E")
+                             coral.0, coral.1)
             }),
             ("page", {
                 let shape = NSBezierPath(roundedRect: page, xRadius: pageRadius, yRadius: pageRadius)
-                gradientFill(leaned(shape, slant: slant, axis: page.midY), "#FFFFFF", "#E3ECFF")
+                gradientFill(leaned(shape, slant: slant, axis: page.midY), paper.dark[0], paper.dark[1])
             }),
             ("streaks", {
                 for s in streaks {
@@ -268,10 +277,11 @@ func dashPage() -> Concept {
                     // Tuck each streak's right end under the leaning page's left edge.
                     let edge = page.minX + slant * (y + streakHeight / 2 - page.midY) + unit * 0.06
                     gradientFill(pill(NSRect(x: edge - unit * s.length, y: y, width: unit * s.length,
-                                             height: streakHeight)), "#FFFFFF", "#D6E6FF", alpha: 0.9)
+                                             height: streakHeight)), streak.0, streak.1)
                 }
             }),
-        ]
+        ],
+        layerFills: ["page": paper]
     )
 }
 
@@ -279,60 +289,65 @@ func dashPage() -> Concept {
 
 let concept = [sparkBraces, codePane, dashPage][conceptNumber - 1]()
 
-func gradientJSON(_ stops: [String]) -> String {
-    stops.map { hex in
-        let c = color(hex)
-        return String(format: "          \"extended-srgb:%.5f,%.5f,%.5f,1.00000\"", c.redComponent,
-                      c.greenComponent, c.blueComponent)
-    }.joined(separator: ",\n")
+// icon.json is built as lines in the shape and formatting Icon Composer and oxfmt produce (keys sorted,
+// 2-space indent), so a redraw doesn't churn the diff.
+
+func indented(_ lines: [String], by spaces: Int) -> [String] {
+    lines.map { String(repeating: " ", count: spaces) + $0 }
 }
 
-func fillJSON(_ stops: [String]) -> String {
-    """
-          "linear-gradient": [
-    \(gradientJSON(stops))
-            ],
-            "orientation": {
-              "start": { "x": 0.2, "y": 0 },
-              "stop": { "x": 0.8, "y": 1 }
-            }
-    """
+/// Appends a comma to the last line, for every entry but the last of an object or array.
+func comma(_ lines: [String]) -> [String] {
+    lines.dropLast() + [lines.last! + ","]
 }
 
-// Same shape and formatting as Icon Composer and oxfmt produce, so a redraw doesn't churn the diff.
-let manifest = """
-    {
-      "fill-specializations": [
-        {
-          "value": {
-      \(fillJSON(concept.fill))
-          }
-        },
-        {
-          "appearance": "dark",
-          "value": {
-      \(fillJSON(concept.darkFill))
-          }
+/// A `"fill-specializations"` entry: `light` for every appearance, `dark` for the dark one. Points are 0–1, y down.
+func fillSpecializations(light: [String], dark: [String], from start: String, to stop: String) -> [String] {
+    func value(_ stops: [String]) -> [String] {
+        let colors = stops.map { hex -> String in
+            let c = color(hex)
+            return String(format: "\"extended-srgb:%.5f,%.5f,%.5f,1.00000\"", c.redComponent, c.greenComponent,
+                          c.blueComponent)
         }
-      ],
-      "groups": [
-        {
-          "layers": [
-    \(concept.layers.map { "        { \"glass\": true, \"image-name\": \"\($0.name).png\", \"name\": \"\($0.name)\" }" }
-        .joined(separator: ",\n"))
-          ],
-          "lighting": "individual",
-          "shadow": { "kind": "neutral", "opacity": 0.35 },
-          "specular": true,
-          "translucency": { "enabled": true, "value": 0.2 }
-        }
-      ],
-      "supported-platforms": {
-        "squares": ["macOS"]
-      }
+        return ["\"value\": {", "  \"linear-gradient\": ["] + indented(comma(Array(colors.dropLast())), by: 4)
+            + ["    " + colors.last!, "  ],", "  \"orientation\": {", "    \"start\": \(start),",
+               "    \"stop\": \(stop)", "  }", "}"]
     }
+    return ["\"fill-specializations\": [", "  {"] + indented(value(light), by: 4) + ["  },", "  {",
+            "    \"appearance\": \"dark\","] + indented(value(dark), by: 4) + ["  }", "]"]
+}
 
-    """
+let diagonal = (from: "{ \"x\": 0.2, \"y\": 0 }", to: "{ \"x\": 0.8, \"y\": 1 }")
+let vertical = (from: "{ \"x\": 0.5, \"y\": 0 }", to: "{ \"x\": 0.5, \"y\": 1 }")
+
+let layerEntries: [[String]] = concept.layers.map { layer in
+    let fields = "\"glass\": true, \"image-name\": \"\(layer.name).png\", \"name\": \"\(layer.name)\""
+    guard let fill = concept.layerFills[layer.name] else { return ["{ \(fields) }"] }
+    return ["{"] + indented(comma(fillSpecializations(light: fill.light, dark: fill.dark, from: vertical.from,
+                                                      to: vertical.to)), by: 2)
+        + indented(["\"glass\": true,", "\"image-name\": \"\(layer.name).png\",", "\"name\": \"\(layer.name)\""], by: 2)
+        + ["}"]
+}
+
+let manifestLines: [String] = ["{"]
+    + indented(comma(fillSpecializations(light: concept.fill, dark: concept.darkFill, from: diagonal.from,
+                                         to: diagonal.to)), by: 2)
+    + ["  \"groups\": [", "    {", "      \"layers\": ["]
+    + indented(layerEntries.dropLast().flatMap(comma) + layerEntries.last!, by: 8)
+    + [
+        "      ],",
+        "      \"lighting\": \"individual\",",
+        "      \"shadow\": { \"kind\": \"neutral\", \"opacity\": 0.35 },",
+        "      \"specular\": true,",
+        "      \"translucency\": { \"enabled\": true, \"value\": 0.2 }",
+        "    }",
+        "  ],",
+        "  \"supported-platforms\": {",
+        "    \"squares\": [\"macOS\"]",
+        "  }",
+        "}",
+    ]
+let manifest = manifestLines.joined(separator: "\n") + "\n"
 
 let icon = URL(fileURLWithPath: output)
 let assets = icon.appendingPathComponent("Assets")

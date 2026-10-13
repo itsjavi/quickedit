@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import WebKit
 import QuickEditCore
@@ -63,6 +64,22 @@ enum DebugHooks {
             if let mode = EditorMode(rawValue: query["value"] ?? "") { editor?.setMode(mode) }
         case "ui/remote-content":
             editor?.setAllowsRemoteContent(query["value"] == "1")
+        case "ui/voice-start":
+            // The recorder's real start/stop path, with the microphone replaced by a clip copied from
+            // `from` or a generated tone of `seconds`.
+            guard let editor else { return }
+            let source = query["from"].flatMap { safePath($0) }.map { URL(fileURLWithPath: $0) }
+            editor.document.state.voiceRecorder.simulatedClip = { url in makeClip(at: url, from: source, query: query) }
+            editor.recordVoiceNote(nil)
+        case "ui/voice-stop", "ui/voice-cancel":
+            guard let recorder = editor?.document.state.voiceRecorder else { return }
+            if verb == "ui/voice-stop" { recorder.stop() } else { recorder.cancel() }
+        case "ui/close-sheet":
+            editor?.document.state.transcribeSource = nil
+            if let window = editor?.view.window, let sheet = window.attachedSheet { window.endSheet(sheet) }
+        case "ui/transcript":
+            // Inserts a transcript as the sheet's Insert would (no speech model needed).
+            if let source = query["src"] { editor?.insertTranscript(query["text"] ?? "", forSource: source) }
         case "ui/indentation":
             guard let editor else { return }
             let style: IndentStyle = query["style"] == "tabs" ? .tabs : .spaces
@@ -109,6 +126,26 @@ enum DebugHooks {
         case "current-line": settings.highlightCurrentLine = on
         case "font-size": if let size = Double(query["value"] ?? "") { settings.fontSize = size }
         default: break
+        }
+    }
+
+    /// Copies `source` to `url`, or writes a short 440 Hz tone (`seconds`, default 1).
+    private static func makeClip(at url: URL, from source: URL?, query: [String: String]) -> Bool {
+        if let source { return (try? FileManager.default.copyItem(at: source, to: url)) != nil }
+        let seconds = Double(query["seconds"] ?? "") ?? 1
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(seconds * 44_100)),
+              let samples = buffer.floatChannelData?[0]
+        else { return false }
+        buffer.frameLength = buffer.frameCapacity
+        for index in 0..<Int(buffer.frameLength) { samples[index] = 0.3 * sin(2 * .pi * 440 * Float(index) / 44_100) }
+        do {
+            let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44_100, AVNumberOfChannelsKey: 1]
+            let file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+            try file.write(from: buffer)
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -160,6 +197,7 @@ enum DebugHooks {
             lines.append("\(prefix).lineEnding: \(state.lineEnding.displayName)\(state.hasMixedLineEndings ? " mixed" : "")")
             lines.append("\(prefix).risky: \(state.riskyCount)")
             lines.append("\(prefix).readOnly: \(state.readOnlyReason ?? "no")")
+            lines.append("\(prefix).voice: recording=\(state.voiceRecorder.isRecording) transcribe=\(state.transcribeSource ?? "-")")
             lines.append("\(prefix).preview: \(state.previewKind.map { "\($0)" } ?? "none") mode=\(state.mode.rawValue) remote=\(state.allowsRemoteContent)")
             lines.append("\(prefix).undo: \(editor.document.undoManager?.undoActionName ?? "")")
             let textView = editor.textView!
