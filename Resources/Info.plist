@@ -74,6 +74,8 @@
 				<string>com.itsjavi.quickedit.ini-variant</string>
 				<string>com.itsjavi.quickedit.sql-variant</string>
 				<string>com.itsjavi.quickedit.reject</string>
+				<string>com.itsjavi.lumiose.stsx</string>
+				<string>com.itsjavi.lumiose.sjsx</string>
 			</array>
 			<key>NSDocumentClass</key>
 			<string>TextDocument</string>
@@ -682,6 +684,40 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>rej</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Lumiose TypeScript Component</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.itsjavi.lumiose.stsx</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>stsx</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Lumiose JavaScript Component</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.itsjavi.lumiose.sjsx</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>sjsx</string>
 				</array>
 			</dict>
 		</dict>
