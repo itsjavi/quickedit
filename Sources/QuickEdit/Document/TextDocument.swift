@@ -214,19 +214,14 @@ final class TextDocument: NSDocument {
     }
 
     override func showWindows() {
-        guard AppVariant.isBackground else {
-            super.showWindows()
-            return
-        }
-        // The agents' Test build never activates or brings windows forward.
-        NSApp.unhideWithoutActivation()
         for controller in windowControllers {
             guard let window = controller.window else { continue }
-            if let host = NSApp.windows.first(where: { $0 !== window && $0.isVisible && $0.tabbingIdentifier == window.tabbingIdentifier }) {
-                host.addTabbedWindow(window, ordered: .above)
+            FolderOpener.joinTabGroup(window)
+            FolderOpener.present(window)
+            if let folder = (controller as? DocumentWindowController)?.folder {
+                FolderOpener.documentWindowAppeared(in: folder)
+                if let url = fileURL { (controller as? DocumentWindowController)?.sidebar?.reveal(url, select: true) }
             }
-            window.orderBack(nil)
         }
     }
 }
-

@@ -126,6 +126,61 @@ enum DebugHooks {
         case "ui/fold-line":
             // Same path as clicking the gutter arrow on a 1-based line.
             if let line = Int(query["line"] ?? "") { editor?.toggleFold(atLine: line - 1) }
+        case "ui/open-folder":
+            if let path = safePath(query["path"]) { FolderOpener.openFolder(URL(fileURLWithPath: path)) }
+        case "ui/tree-open":
+            // A click on a file in the sidebar; `path` is relative to the folder (`folder=` picks it by suffix).
+            guard let model = targetFolder(query["folder"]), let path = query["path"] else { return }
+            FolderOpener.open(model.root.appendingPathComponent(path), in: model)
+        case "ui/tree-expand":
+            guard let model = targetFolder(query["folder"]) else { return }
+            let url = model.root.appendingPathComponent(query["path"] ?? "").standardizedFileURL
+            if query["value"] == "0" { model.expanded.remove(url) } else { model.expanded.insert(url) }
+            NotificationCenter.default.post(name: .folderExpansionDidChange, object: model)
+        case "ui/tree-op":
+            // op=new-file|new-folder&path=<folder>&name= · op=rename&path=&name= · op=move&path=&to=<folder> · op=trash&path=
+            guard let model = targetFolder(query["folder"]) else { return }
+            let url = model.root.appendingPathComponent(query["path"] ?? "")
+            switch query["op"] {
+            case "new-file": FolderFileOperations.create(named: query["name"] ?? "", in: url, isFolder: false, model: model)
+            case "new-folder": FolderFileOperations.create(named: query["name"] ?? "", in: url, isFolder: true, model: model)
+            case "rename": FolderFileOperations.rename(url, to: query["name"] ?? "", model: model)
+            case "move": FolderFileOperations.move(url, into: model.root.appendingPathComponent(query["to"] ?? ""), model: model)
+            case "trash": FolderFileOperations.trash(url, model: model)
+            default: break
+            }
+        case "ui/folder-hidden":
+            targetFolder(query["folder"])?.showsHiddenAndIgnored = query["value"] == "1"
+        case "ui/quick-open":
+            // Opens Quick Open for the folder (kept off screen in the Test build), searches `q`, and with pick=N opens result N.
+            guard let model = targetFolder(query["folder"]), let window = FolderRegistry.windows(of: model).first else { return }
+            QuickOpenController.show(in: window)
+            guard let controller = QuickOpenController.current else { return }
+            let q = query["q"] ?? ""
+            let pick = Int(query["pick"] ?? "")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                MainActor.assumeIsolated {
+                    controller.search(q)
+                    if let pick, pick < controller.results.count {
+                        FolderOpener.open(model.root.appendingPathComponent(controller.results[pick].path), in: model)
+                    }
+                }
+            }
+        case "debug/folders":
+            guard let path = safePath(query["out"]) else { return }
+            var lines: [String] = []
+            for model in FolderRegistry.folders {
+                lines.append("folder: \(model.root.path) hidden=\(model.showsHiddenAndIgnored)")
+                let windows = FolderRegistry.windows(of: model)
+                lines.append("  windows: \(windows.map(\.title)) tabs=\(windows.first?.tabbedWindows?.count ?? 1)")
+                let sidebar = windows.compactMap { ($0.windowController as? DocumentWindowController)?.sidebar
+                    ?? ($0.contentViewController as? FolderSplitViewController)?.sidebar }.first
+                for row in sidebar?.visibleRows ?? [] { lines.append("  | " + row) }
+            }
+            if let controller = QuickOpenController.current {
+                lines.append("quickOpen: \(controller.results.prefix(8).map(\.path))")
+            }
+            try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
         case "ui/front":
             // Agreed UI sessions only: shows the window above others (no activation) so WebKit paints for captures.
             guard let window = editor?.view.window else { return }
@@ -238,6 +293,11 @@ enum DebugHooks {
         } catch {
             return false
         }
+    }
+
+    private static func targetFolder(_ suffix: String?) -> FolderModel? {
+        if let suffix, !suffix.isEmpty { return FolderRegistry.folders.first { $0.root.path.hasSuffix(suffix) } }
+        return FolderRegistry.folders.last
     }
 
     private static func findWebView(in view: NSView) -> WKWebView? {

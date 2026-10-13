@@ -50,6 +50,8 @@ enum MainMenu {
         menu.addItem(item("New", #selector(NSDocumentController.newDocument(_:)), "n"))
         menu.addItem(item("New Tab", #selector(NSResponder.newWindowForTab(_:)), "t"))
         menu.addItem(item("Open…", #selector(NSDocumentController.openDocument(_:)), "o"))
+        menu.addItem(item("Open Folder…", #selector(DocumentController.openFolderPanel(_:)), "o", [.command, .shift]))
+        menu.addItem(item("Quick Open…", #selector(AppDelegate.quickOpen(_:)), "p"))
         let recent = NSMenu(title: "Open Recent")
         recent.delegate = recentMenuDelegate
         menu.addItem(submenu(recent, title: "Open Recent"))
@@ -66,7 +68,7 @@ enum MainMenu {
         menu.addItem(item("Browse All Versions…", #selector(NSDocument.browseVersions(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Page Setup…", #selector(NSDocument.runPageLayout(_:)), "p", [.command, .shift]))
-        menu.addItem(item("Print…", #selector(NSDocument.printDocument(_:)), "p"))
+        menu.addItem(item("Print…", #selector(NSDocument.printDocument(_:)), "p", [.command, .option]))
         return menu
     }
 
@@ -115,6 +117,8 @@ enum MainMenu {
 
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
+        menu.addItem(item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]))
+        menu.addItem(.separator())
         menu.addItem(item("Show Line Numbers", #selector(AppDelegate.toggleLineNumbers(_:))))
         menu.addItem(item("Show Invisible Characters", #selector(AppDelegate.toggleInvisibles(_:)), "i", [.command, .option]))
         menu.addItem(item("Wrap Lines", #selector(AppDelegate.toggleWrapLines(_:)), "w", [.command, .option]))

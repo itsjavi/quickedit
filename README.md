@@ -14,6 +14,9 @@ A native macOS code viewer and editor for small, quick edits: a modern TextEdit,
 
 - **Files as tabs.** Every file opens as a native window tab (⌘T for a new one). Autosave and version history like
   TextEdit, or explicit ⌘S saving if you prefer (Settings).
+- **Folders.** File › Open Folder… (⇧⌘O), or drop a folder on QuickEdit: a file tree sidebar (hidden and `.gitignore`d
+  files hidden until you show them), the folder's files as tabs of one window, ⌘P to open any file by name, and New
+  File, New Folder, Rename, Move (drag) and Move to Trash in the tree. Open files follow renames and moves.
 - **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, [Lumiose](https://itsjavi.com/lumiose/) components (`.stsx`/`.sjsx`,
   with their `<style>` blocks as CSS), CSS, HTML, Markdown, CSV/TSV (rainbow columns), JSON/JSONC/JSON Lines, YAML,
   TOML, Go (+ `go.mod`), Rust, Python, Swift, GDScript and Godot resources and shaders, Dockerfile, XML (plists, SVG,

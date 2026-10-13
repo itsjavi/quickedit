@@ -14,6 +14,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }()
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // The first NSDocumentController made becomes the shared one: ours also opens folders.
+        _ = DocumentController()
+        // Folders before AppKit restores documents, so restored files rejoin their folder's tab group.
+        if !AppVariant.isBackground {
+            for url in FolderRegistry.rememberedFolders { _ = FolderRegistry.model(for: url) }
+        }
         if AppVariant.isBackground { NSApp.setActivationPolicy(.accessory) }
         NSApp.mainMenu = MainMenu.make()
         settings.applyAppearance()
@@ -21,7 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
-            if url.isFileURL {
+            if url.isFileURL, DocumentController.isFolder(url) {
+                FolderOpener.openFolder(url)
+            } else if url.isFileURL {
                 NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
                     if let error, Dialogs.shouldPresent(error) { NSApp.presentError(error) }
                 }
@@ -33,6 +41,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [updater] in updater?.startUpdater() }
+        // Restored folders whose files didn't come back get their placeholder tab.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            MainActor.assumeIsolated {
+                for model in FolderRegistry.folders where FolderRegistry.windows(of: model).isEmpty {
+                    FolderOpener.showPlaceholder(for: model)
+                }
+            }
+        }
+    }
+
+    @objc func quickOpen(_ sender: Any?) {
+        QuickOpenController.show(in: NSApp.keyWindow ?? NSApp.mainWindow)
     }
 
     @objc func checkForUpdates(_ sender: Any?) {
@@ -83,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(checkForUpdates(_:)): return updater?.updater.canCheckForUpdates ?? false
+        case #selector(quickOpen(_:)): return (NSApp.keyWindow ?? NSApp.mainWindow).flatMap(QuickOpenController.folder(of:)) != nil
         case #selector(toggleLineNumbers(_:)): menuItem.state = settings.showLineNumbers ? .on : .off
         case #selector(toggleInvisibles(_:)): menuItem.state = settings.showInvisibles ? .on : .off
         case #selector(toggleWrapLines(_:)): menuItem.state = settings.wrapLines ? .on : .off
