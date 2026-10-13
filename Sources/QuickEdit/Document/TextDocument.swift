@@ -1,4 +1,5 @@
 import AppKit
+import QuickEditCore
 import UniformTypeIdentifiers
 
 /// One text file. The document owns the text storage; its window's editor lays it out.
@@ -52,11 +53,52 @@ final class TextDocument: NSDocument {
             state.indentation = AppSettings.shared.defaultIndentation
             state.indentationSource = .settings
         }
+        let selection = editor?.textView.selectedRange()
         textStorage.beginEditing()
         textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: decoded.text)
         textStorage.endEditing()
-        editor?.documentDidLoad()
+        editor?.documentDidLoad(keeping: selection)
     }
+
+    // MARK: Changes on disk
+
+    nonisolated override func presentedItemDidChange() {
+        super.presentedItemDidChange()
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { self.fileDidChangeOnDisk() }
+        }
+    }
+
+    /// Another app changed the file: reload when there are no unsaved edits, otherwise let the user choose.
+    private func fileDidChangeOnDisk() {
+        guard let url = fileURL, let type = fileType, let known = fileModificationDate,
+              let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
+              modified > known, !isAskingAboutDiskChange
+        else { return }
+        guard isDocumentEdited else {
+            try? revert(toContentsOf: url, ofType: type)
+            return
+        }
+        guard let window = windowControllers.first?.window else { return }
+        isAskingAboutDiskChange = true
+        let alert = NSAlert()
+        alert.messageText = "“\(displayName ?? "This file")” changed on disk."
+        alert.informativeText = "Another app changed the file while you have unsaved edits here."
+        alert.addButton(withTitle: "Keep My Edits")
+        alert.addButton(withTitle: "Reload from Disk")
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            isAskingAboutDiskChange = false
+            if response == .alertSecondButtonReturn {
+                try? revert(toContentsOf: url, ofType: type)
+            } else {
+                // The user chose their version: the next save overwrites the disk one without asking again.
+                fileModificationDate = modified
+            }
+        }
+    }
+
+    private var isAskingAboutDiskChange = false
 
     // MARK: Writing
 

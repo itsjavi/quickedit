@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuickEditCore
 
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case system, light, dark
@@ -70,6 +71,8 @@ extension Notification.Name {
         static let insertFinalNewline = "insertFinalNewline"
         static let useEditorConfig = "useEditorConfig"
         static let editorMode = "editorMode"
+        /// Locale identifier for voice note transcription; empty = the system language.
+        static let transcriptionLanguage = "transcriptionLanguage"
         /// Read by `TextDocument.autosavesInPlace`, so it applies from the next launch.
         static let autosaveInPlace = "autosaveInPlace"
     }
@@ -91,6 +94,7 @@ extension Notification.Name {
     var insertFinalNewline: Bool { didSet { store(insertFinalNewline, Key.insertFinalNewline) } }
     var useEditorConfig: Bool { didSet { store(useEditorConfig, Key.useEditorConfig) } }
     var editorMode: EditorMode { didSet { store(editorMode.rawValue, Key.editorMode) } }
+    var transcriptionLanguage: String { didSet { store(transcriptionLanguage, Key.transcriptionLanguage) } }
     var autosaveInPlace: Bool { didSet { store(autosaveInPlace, Key.autosaveInPlace) } }
 
     /// The autosave mode this launch runs with (NSDocument expects a constant).
@@ -112,6 +116,7 @@ extension Notification.Name {
             Key.insertFinalNewline: false,
             Key.useEditorConfig: true,
             Key.editorMode: EditorMode.edit.rawValue,
+            Key.transcriptionLanguage: "",
             Key.autosaveInPlace: true,
         ])
         appearance = AppearanceMode(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
@@ -128,6 +133,7 @@ extension Notification.Name {
         insertFinalNewline = defaults.bool(forKey: Key.insertFinalNewline)
         useEditorConfig = defaults.bool(forKey: Key.useEditorConfig)
         editorMode = EditorMode(rawValue: defaults.string(forKey: Key.editorMode) ?? "") ?? .edit
+        transcriptionLanguage = defaults.string(forKey: Key.transcriptionLanguage) ?? ""
         autosaveInPlace = defaults.bool(forKey: Key.autosaveInPlace)
     }
 

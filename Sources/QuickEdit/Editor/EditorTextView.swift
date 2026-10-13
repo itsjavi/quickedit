@@ -1,4 +1,5 @@
 import AppKit
+import QuickEditCore
 
 /// The code editor's text view: indentation-aware Tab/Return, the document's own line endings for new lines,
 /// and a current-line highlight. Line commands live in extensions.
@@ -6,6 +7,8 @@ final class EditorTextView: NSTextView {
     var indentation = Indentation(style: .spaces, width: 4)
     /// What Return inserts, so a CRLF file stays CRLF.
     var lineEnding = LineEnding.lf
+    /// The language's comment markers, for Toggle Comment.
+    var commentStyle = CommentStyle.none
     var highlightsCurrentLine = true {
         didSet { if highlightsCurrentLine != oldValue { needsDisplay = true } }
     }

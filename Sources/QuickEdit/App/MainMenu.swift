@@ -92,7 +92,15 @@ enum MainMenu {
         let lines = NSMenu(title: "Lines")
         lines.addItem(item("Indent", #selector(EditorTextView.indentSelectedLines(_:)), "]"))
         lines.addItem(item("Outdent", #selector(EditorTextView.outdentSelectedLines(_:)), "["))
+        lines.addItem(.separator())
+        lines.addItem(item("Move Line Up", #selector(EditorTextView.moveLineUp(_:)), arrow(NSUpArrowFunctionKey), [.command, .control]))
+        lines.addItem(item("Move Line Down", #selector(EditorTextView.moveLineDown(_:)), arrow(NSDownArrowFunctionKey), [.command, .control]))
+        lines.addItem(item("Duplicate Line", #selector(EditorTextView.duplicateLine(_:)), "d", [.command, .shift]))
+        lines.addItem(item("Delete Line", #selector(EditorTextView.deleteLine(_:)), "k", [.control, .shift]))
+        lines.addItem(item("Join Lines", #selector(EditorTextView.joinLines(_:)), "j", [.control]))
+        lines.addItem(item("Sort Lines", #selector(EditorTextView.sortLines(_:))))
         menu.addItem(submenu(lines, title: "Lines"))
+        menu.addItem(item("Toggle Comment", #selector(EditorTextView.toggleComment(_:)), "/"))
 
         let transformations = NSMenu(title: "Transformations")
         transformations.addItem(item("Make Upper Case", #selector(NSResponder.uppercaseWord(_:))))
@@ -108,6 +116,10 @@ enum MainMenu {
         menu.addItem(item("Show Invisible Characters", #selector(AppDelegate.toggleInvisibles(_:)), "i", [.command, .option]))
         menu.addItem(item("Wrap Lines", #selector(AppDelegate.toggleWrapLines(_:)), "w", [.command, .option]))
         menu.addItem(item("Highlight Current Line", #selector(AppDelegate.toggleCurrentLineHighlight(_:))))
+        menu.addItem(.separator())
+        menu.addItem(item("Editor", #selector(EditorViewController.showEditorOnly(_:)), "1"))
+        menu.addItem(item("Split Preview", #selector(EditorViewController.showSplit(_:)), "2"))
+        menu.addItem(item("Preview", #selector(EditorViewController.showPreviewOnly(_:)), "3"))
         menu.addItem(.separator())
         let appearance = NSMenu(title: "Appearance")
         for mode in AppearanceMode.allCases {
@@ -145,6 +157,10 @@ enum MainMenu {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         if !key.isEmpty { item.keyEquivalentModifierMask = modifiers }
         return item
+    }
+
+    private static func arrow(_ key: Int) -> String {
+        String(Character(UnicodeScalar(UInt16(key))!))
     }
 
     private static func finderItem(_ title: String, _ action: NSTextFinder.Action, _ key: String, _ modifiers: NSEvent.ModifierFlags = .command) -> NSMenuItem {

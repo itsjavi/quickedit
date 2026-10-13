@@ -1,3 +1,4 @@
+import QuickEditCore
 import SwiftUI
 
 /// The bar under the editor: caret position and warnings on the left; language, indentation, encoding and line
@@ -24,6 +25,9 @@ struct StatusBarView: View {
                     .help(reason)
             }
             Spacer(minLength: 8)
+            if state.previewKind != nil {
+                previewControls
+            }
             indentationMenu
             encodingMenu
             lineEndingMenu
@@ -44,6 +48,28 @@ struct StatusBarView: View {
         var text = "Ln \(state.line), Col \(state.column)"
         if state.selectionLength > 0 { text += " (\(state.selectionLength) selected)" }
         return text
+    }
+
+    @ViewBuilder private var previewControls: some View {
+        if state.mode != .edit {
+            Toggle(isOn: Binding(get: { state.allowsRemoteContent }, set: { controller?.setAllowsRemoteContent($0) })) {
+                Image(systemName: state.allowsRemoteContent ? "network" : "network.slash")
+            }
+            .toggleStyle(.button)
+            .help(state.allowsRemoteContent
+                ? "The preview loads remote images and stylesheets for this window. Click to block them again."
+                : "The preview blocks remote images and stylesheets. Click to allow them for this window. Scripts never run.")
+        }
+        Picker("Mode", selection: Binding(get: { state.mode }, set: { controller?.setMode($0) })) {
+            ForEach(EditorMode.allCases) { mode in
+                Image(systemName: mode.symbol).help(mode.title).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .controlSize(.mini)
+        .fixedSize()
+        .help("Editor, split or preview (⌘1, ⌘2, ⌘3)")
     }
 
     private var indentationMenu: some View {

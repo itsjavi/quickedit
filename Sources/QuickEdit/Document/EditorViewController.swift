@@ -1,13 +1,17 @@
 import AppKit
+import QuickEditCore
 import SwiftUI
 
 /// A document window's content: the scrollable editor with its line-number ruler, and the status bar.
-final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextStorageDelegate {
+final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextStorageDelegate, NSMenuItemValidation {
     let document: TextDocument
     private(set) var textView: EditorTextView!
     private(set) var scrollView: NSScrollView!
     private var layoutManager: EditorLayoutManager!
     private var ruler: LineNumberRulerView?
+    private var splitView: NSSplitView!
+    private var previewHost: NSView?
+    let preview = PreviewModel()
     let lineIndex = LineIndex()
     private var settings: AppSettings { .shared }
     private var state: EditorState { document.state }
@@ -70,14 +74,22 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         let statusBar = NSHostingView(rootView: StatusBarView(state: state, controller: self))
         statusBar.translatesAutoresizingMaskIntoConstraints = false
 
+        let splitView = NSSplitView()
+        splitView.isVertical = true
+        splitView.dividerStyle = .thin
+        splitView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.translatesAutoresizingMaskIntoConstraints = true
+        splitView.addArrangedSubview(scrollView)
+        self.splitView = splitView
+
         let root = NSView()
-        root.addSubview(scrollView)
+        root.addSubview(splitView)
         root.addSubview(statusBar)
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: root.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            splitView.topAnchor.constraint(equalTo: root.topAnchor),
+            splitView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            splitView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            splitView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             statusBar.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             statusBar.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             statusBar.bottomAnchor.constraint(equalTo: root.bottomAnchor),
@@ -88,8 +100,88 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         storage.delegate = self
         NotificationCenter.default.addObserver(self, selector: #selector(settingsDidChange), name: .editorSettingsDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(scrollViewDidResize), name: NSView.frameDidChangeNotification, object: scrollView)
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(editorDidScroll), name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
         applySettings()
         documentDidLoad()
+    }
+
+    // MARK: Preview
+
+    /// Sets up the preview for Markdown and HTML files (after loading, saving under a new name, or a language change).
+    func updatePreviewKind() {
+        let name = document.fileURL?.lastPathComponent ?? document.displayName ?? ""
+        let kind = PreviewKind.forFile(named: name)
+        let changed = kind != state.previewKind
+        state.previewKind = kind
+        if let kind {
+            preview.kind = kind
+            preview.directory = document.fileURL?.deletingLastPathComponent() ?? FileManager.default.homeDirectoryForCurrentUser
+            preview.onOpenFile = { url in
+                NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+            }
+            if changed { state.mode = settings.editorMode }
+        } else {
+            state.mode = .edit
+        }
+        applyMode()
+    }
+
+    func setMode(_ mode: EditorMode) {
+        guard state.previewKind != nil else { return }
+        state.mode = mode
+        settings.editorMode = mode
+        applyMode()
+    }
+
+    func setAllowsRemoteContent(_ allows: Bool) {
+        state.allowsRemoteContent = allows
+        preview.allowsRemoteContent = allows
+    }
+
+    private func applyMode() {
+        let mode = state.previewKind == nil ? EditorMode.edit : state.mode
+        if mode != .edit, previewHost == nil {
+            let host = NSHostingView(rootView: DocumentPreview(model: preview))
+            host.translatesAutoresizingMaskIntoConstraints = true
+            splitView.addArrangedSubview(host)
+            previewHost = host
+        }
+        if mode != .edit { preview.text = textView.string }
+        scrollView.isHidden = mode == .preview
+        previewHost?.isHidden = mode == .edit
+        splitView.adjustSubviews()
+        if mode == .split, splitView.subviews.count == 2 {
+            splitView.setPosition(splitView.bounds.width / 2, ofDividerAt: 0)
+        }
+        if mode == .preview, let window = view.window, window.firstResponder === textView {
+            window.makeFirstResponder(nil)
+        }
+    }
+
+    private var isPreviewVisible: Bool { state.previewKind != nil && state.mode != .edit }
+
+    @objc private func editorDidScroll() {
+        guard isPreviewVisible, state.mode == .split, state.previewKind == .markdown,
+              let layoutManager = textView.layoutManager, let container = textView.textContainer else { return }
+        let visible = textView.visibleRect
+        let glyph = layoutManager.glyphIndex(for: NSPoint(x: 0, y: visible.minY - textView.textContainerOrigin.y), in: container)
+        let character = layoutManager.characterIndexForGlyph(at: glyph)
+        let line = lineIndex.line(of: character, in: textView.string as NSString) + 1
+        if preview.scrollLine != line { preview.scrollLine = line }
+    }
+
+    @objc func showEditorOnly(_ sender: Any?) { setMode(.edit) }
+    @objc func showSplit(_ sender: Any?) { setMode(.split) }
+    @objc func showPreviewOnly(_ sender: Any?) { setMode(.preview) }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        let modes: [Selector: EditorMode] = [#selector(showEditorOnly(_:)): .edit, #selector(showSplit(_:)): .split, #selector(showPreviewOnly(_:)): .preview]
+        if let action = menuItem.action, let mode = modes[action] {
+            menuItem.state = state.previewKind != nil && state.mode == mode ? .on : .off
+            return state.previewKind != nil
+        }
+        return true
     }
 
     func tearDown() {
@@ -181,13 +273,18 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     // MARK: Document events
 
-    /// Called after the document's text was (re)loaded from disk.
-    func documentDidLoad() {
+    /// Called after the document's text was (re)loaded from disk; keeps the caret near `selection`.
+    func documentDidLoad(keeping selection: NSRange? = nil) {
         guard textView != nil else { return }
         lineIndex.invalidate()
         applySettings()
+        if let selection {
+            let length = (textView.string as NSString).length
+            textView.setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
+        }
         updatePosition()
         updateRiskyCount()
+        updatePreviewKind()
     }
 
     // MARK: Text events
@@ -203,6 +300,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
                     self.ruler?.textDidChange()
                     self.updatePosition()
                     self.updateRiskyCount()
+                    if self.isPreviewVisible { self.preview.text = self.textView.string }
                 }
             }
         }

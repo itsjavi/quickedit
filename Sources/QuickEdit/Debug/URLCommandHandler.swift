@@ -1,4 +1,6 @@
 import AppKit
+import WebKit
+import QuickEditCore
 
 /// Handles the app's URL scheme. Release builds accept no verbs; DEBUG builds expose
 /// test hooks that call the same methods as the UI, restricted to temp folders.
@@ -57,6 +59,10 @@ enum DebugHooks {
             // Same responder-chain path as the menu item, starting at the editor.
             guard let name = query["name"], let textView = editor?.textView else { return }
             _ = textView.tryToPerform(Selector(name), with: nil)
+        case "ui/mode":
+            if let mode = EditorMode(rawValue: query["value"] ?? "") { editor?.setMode(mode) }
+        case "ui/remote-content":
+            editor?.setAllowsRemoteContent(query["value"] == "1")
         case "ui/indentation":
             guard let editor else { return }
             let style: IndentStyle = query["style"] == "tabs" ? .tabs : .spaces
@@ -65,6 +71,20 @@ enum DebugHooks {
         case "ui/line-endings":
             if let ending = LineEnding.allCases.first(where: { $0.displayName.lowercased() == query["value"]?.lowercased() }) {
                 editor?.convertLineEndings(to: ending)
+            }
+        case "debug/preview":
+            // The preview page's text and the computed colour of its first heading and `.local` paragraph.
+            guard let path = safePath(query["out"]), let root = editor?.view, let webView = findWebView(in: root) else { return }
+            let script = """
+            const h = document.querySelector('h1'); const l = document.querySelector('.local');
+            return [document.body ? document.body.innerText : '(no body)',
+                    'h1 color: ' + (h ? getComputedStyle(h).color : '-'),
+                    '.local color: ' + (l ? getComputedStyle(l).color : '-'),
+                    'url: ' + location.href].join('\\n');
+            """
+            Task {
+                let result = try? await webView.callAsyncJavaScript(script, arguments: [:], in: nil, contentWorld: .defaultClient)
+                try? ((result as? String) ?? "(no result)").write(toFile: path, atomically: true, encoding: .utf8)
             }
         case "debug/snapshot":
             // Renders the editor's text view in-process (independent of window-server capture).
@@ -90,6 +110,12 @@ enum DebugHooks {
         case "font-size": if let size = Double(query["value"] ?? "") { settings.fontSize = size }
         default: break
         }
+    }
+
+    private static func findWebView(in view: NSView) -> WKWebView? {
+        if let webView = view as? WKWebView { return webView }
+        for subview in view.subviews { if let found = findWebView(in: subview) { return found } }
+        return nil
     }
 
     private static var editors: [EditorViewController] {
@@ -134,6 +160,7 @@ enum DebugHooks {
             lines.append("\(prefix).lineEnding: \(state.lineEnding.displayName)\(state.hasMixedLineEndings ? " mixed" : "")")
             lines.append("\(prefix).risky: \(state.riskyCount)")
             lines.append("\(prefix).readOnly: \(state.readOnlyReason ?? "no")")
+            lines.append("\(prefix).preview: \(state.previewKind.map { "\($0)" } ?? "none") mode=\(state.mode.rawValue) remote=\(state.allowsRemoteContent)")
             lines.append("\(prefix).undo: \(editor.document.undoManager?.undoActionName ?? "")")
             let textView = editor.textView!
             lines.append("\(prefix).layout: frame=\(textView.frame) visible=\(textView.visibleRect) container=\(textView.textContainer?.size ?? .zero)")

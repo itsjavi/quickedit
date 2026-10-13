@@ -7,9 +7,17 @@ let package = Package(
     products: [
         .executable(name: "QuickEdit", targets: ["QuickEdit"]),
     ],
+    dependencies: [
+        // cmark-gfm: GitHub's Markdown engine (tables, task lists, autolinks, tagfilter).
+        .package(url: "https://github.com/swiftlang/swift-cmark.git", from: "0.9.0"),
+    ],
     targets: [
         .target(
             name: "QuickEditCore",
+            dependencies: [
+                .product(name: "cmark-gfm", package: "swift-cmark"),
+                .product(name: "cmark-gfm-extensions", package: "swift-cmark"),
+            ],
             path: "Sources/QuickEditCore"
         ),
         .executableTarget(

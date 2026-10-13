@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import QuickEditCore
 
 /// Where a document's indentation came from, shown in the status bar menu.
 enum IndentationSource: String {
@@ -24,6 +25,11 @@ enum IndentationSource: String {
     var riskyCount = 0
     /// Set when the file can't be saved back faithfully (lossy decoding, binary property list).
     var readOnlyReason: String?
+    /// Markdown and HTML files get a preview and Edit / Split / Preview modes.
+    var previewKind: PreviewKind?
+    var mode = EditorMode.edit
+    /// The preview's Remote Content toggle (this window only, off by default).
+    var allowsRemoteContent = false
 
     var isReadOnly: Bool { readOnlyReason != nil }
 }

@@ -1,0 +1,281 @@
+import AppKit
+import QuickEditCore
+import SwiftUI
+import UniformTypeIdentifiers
+import WebKit
+
+/// Live GitHub-style preview of Markdown in a WKWebView.
+///
+/// Note content never runs scripts (CSP `script-src 'none'`); the app updates the page
+/// from an isolated content world. Local resources load through `quickedit-file:` URLs
+/// confined to `accessRoot`.
+struct MarkdownPreview: NSViewRepresentable {
+    var markdown: String
+    /// Directory relative links and images resolve against.
+    var baseDirectory: URL
+    /// Files outside this folder can't be loaded by the page.
+    var accessRoot: URL
+    var frontMatter: MarkdownRenderer.FrontMatterStyle = .block
+    /// Remote images and media (the window's Remote Content toggle).
+    var allowsRemoteContent = false
+    /// Source line to scroll to (split mode sync); nil leaves scrolling alone.
+    var scrollLine: Int?
+    /// Opens a linked local text file in QuickEdit.
+    var onOpenFile: ((URL) -> Void)?
+    /// Shows Transcribe links under audio embeds; receives the clip's link destination as written.
+    var onTranscribe: ((String) -> Void)?
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.setURLSchemeHandler(context.coordinator.fileHandler, forURLScheme: LocalFileSchemeHandler.scheme)
+        configuration.preferences.isElementFullscreenEnabled = false
+        configuration.websiteDataStore = .nonPersistent()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
+        webView.setValue(false, forKey: "drawsBackground")
+        webView.allowsMagnification = true
+        context.coordinator.webView = webView
+        context.coordinator.update(self)
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.update(self)
+    }
+
+    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.renderTask?.cancel()
+        webView.stopLoading()
+    }
+
+    @MainActor final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        weak var webView: WKWebView?
+        let fileHandler = LocalFileSchemeHandler()
+        var renderTask: Task<Void, Never>?
+        private var parent: MarkdownPreview?
+        private var loadedBase: URL?
+        private var loadedRemote = false
+        private var isPageReady = false
+        private var isLoading = false
+        private var pendingHTML: String?
+        private var lastMarkdown: String?
+        private var lastScrollLine: Int?
+
+        func update(_ preview: MarkdownPreview) {
+            parent = preview
+            fileHandler.accessRoot = preview.accessRoot.canonical
+            let base = LocalFileSchemeHandler.url(for: preview.baseDirectory, isDirectory: true)
+            if base != loadedBase || preview.allowsRemoteContent != loadedRemote {
+                loadedBase = base
+                loadedRemote = preview.allowsRemoteContent
+                lastMarkdown = nil
+                isPageReady = false
+                isLoading = false
+                pendingHTML = nil
+            }
+            if preview.markdown != lastMarkdown {
+                lastMarkdown = preview.markdown
+                let options = MarkdownRenderer.Options(frontMatter: preview.frontMatter, transcribeLinks: preview.onTranscribe != nil)
+                scheduleRender(preview.markdown, options: options, immediate: !isPageReady && !isLoading)
+            }
+            if let line = preview.scrollLine, line != lastScrollLine {
+                lastScrollLine = line
+                scroll(to: line)
+            }
+        }
+
+        private func scheduleRender(_ markdown: String, options: MarkdownRenderer.Options, immediate: Bool) {
+            renderTask?.cancel()
+            renderTask = Task {
+                if !immediate { try? await Task.sleep(for: .milliseconds(90)) }
+                guard !Task.isCancelled else { return }
+                let (html, linkedFiles) = await Task.detached(priority: .userInitiated) {
+                    (MarkdownRenderer.html(from: markdown, options: options), LocalFileSchemeHandler.linkedAbsoluteFiles(in: markdown))
+                }.value
+                guard !Task.isCancelled else { return }
+                self.fileHandler.allowedFiles = linkedFiles
+                self.show(html)
+            }
+        }
+
+        private func show(_ html: String) {
+            guard let webView, let base = loadedBase else { return }
+            if isPageReady {
+                setContent(html)
+            } else if isLoading {
+                pendingHTML = html
+            } else {
+                isLoading = true
+                webView.loadHTMLString(PreviewPage.html(body: html, allowRemoteImages: loadedRemote), baseURL: base)
+            }
+        }
+
+        private func setContent(_ html: String) {
+            webView?.callAsyncJavaScript("document.getElementById('content').innerHTML = html;", arguments: ["html": html], in: nil, in: .defaultClient)
+        }
+
+        private func scroll(to line: Int) {
+            guard isPageReady, let webView else { return }
+            let script = """
+            let best = null;
+            for (const el of document.querySelectorAll('[data-sourcepos]')) {
+              const start = parseInt(el.getAttribute('data-sourcepos'));
+              if (start <= line) best = el; else break;
+            }
+            if (best) window.scrollTo({top: Math.max(0, best.getBoundingClientRect().top + window.scrollY - 12)});
+            else if (line <= 1) window.scrollTo({top: 0});
+            """
+            webView.callAsyncJavaScript(script, arguments: ["line": line], in: nil, in: .defaultClient)
+        }
+
+        // MARK: WKNavigationDelegate
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isPageReady = true
+            isLoading = false
+            if let html = pendingHTML {
+                pendingHTML = nil
+                setContent(html)
+            }
+            if let line = lastScrollLine { scroll(to: line) }
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            guard let url = navigationAction.request.url else { return .cancel }
+            if navigationAction.navigationType == .other && navigationAction.targetFrame?.isMainFrame == true && url == loadedBase {
+                return .allow
+            }
+            if isSameDocument(url) { return .allow }
+            if navigationAction.navigationType == .linkActivated || navigationAction.targetFrame == nil {
+                open(url)
+            }
+            return .cancel
+        }
+
+        private func isSameDocument(_ url: URL) -> Bool {
+            guard url.fragment != nil, let current = loadedBase else { return false }
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.fragment = nil
+            return components?.url == current
+        }
+
+        private func open(_ url: URL) {
+            switch url.scheme?.lowercased() {
+            case "http", "https", "mailto":
+                NSWorkspace.shared.open(url)
+            case MarkdownRenderer.actionScheme:
+                let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                if components?.path == "transcribe", let source = components?.queryItems?.first(where: { $0.name == "src" })?.value {
+                    parent?.onTranscribe?(source)
+                }
+            case LocalFileSchemeHandler.scheme:
+                guard let fileURL = fileHandler.fileURL(for: url) else { return }
+                if PreviewLinks.opensInEditor(fileURL), let onOpenFile = parent?.onOpenFile {
+                    onOpenFile(fileURL)
+                } else {
+                    // Never launch local files from a link (could be executables); show them instead.
+                    NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                }
+            default:
+                break
+            }
+        }
+
+        // MARK: WKUIDelegate
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url { open(url) }
+            return nil
+        }
+
+        func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo, type: WKMediaCaptureType) async -> WKPermissionDecision {
+            .deny
+        }
+    }
+}
+
+/// Serves `quickedit-file://local/<absolute path>` from disk, only inside `accessRoot` or for files the
+/// note links by absolute path. Byte-range requests are answered so audio and video can play and seek.
+final class LocalFileSchemeHandler: NSObject, WKURLSchemeHandler {
+    static let scheme = "quickedit-file"
+    var accessRoot: URL?
+    /// Canonical paths outside `accessRoot` that the open note links explicitly.
+    var allowedFiles: Set<String> = []
+
+    /// Canonical paths of the absolute-path links in `markdown` (attachments linked in place).
+    nonisolated static func linkedAbsoluteFiles(in markdown: String) -> Set<String> {
+        Set(MarkdownRenderer.linkDestinations(in: markdown).compactMap { destination in
+            guard destination.hasPrefix("/"), let path = destination.removingPercentEncoding else { return nil }
+            return URL(fileURLWithPath: path).canonical.path
+        })
+    }
+
+    static func url(for fileURL: URL, isDirectory: Bool) -> URL? {
+        var components = URLComponents()
+        components.scheme = scheme
+        components.host = "local"
+        var path = fileURL.standardizedFileURL.path
+        if isDirectory && !path.hasSuffix("/") { path += "/" }
+        components.path = path
+        return components.url
+    }
+
+    func fileURL(for url: URL) -> URL? {
+        guard url.scheme == Self.scheme, let root = accessRoot else { return nil }
+        let path = URLComponents(url: url, resolvingAgainstBaseURL: false)?.path ?? url.path
+        let fileURL = URL(fileURLWithPath: path).canonical
+        let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        guard fileURL.path.hasPrefix(rootPath) || fileURL.path == root.path || allowedFiles.contains(fileURL.path) else { return nil }
+        return fileURL
+    }
+
+    func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
+        guard let url = urlSchemeTask.request.url, let fileURL = fileURL(for: url),
+              let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe)
+        else {
+            urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
+            return
+        }
+        let mime = UTType(filenameExtension: fileURL.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        var headers = ["Content-Type": mime, "Accept-Ranges": "bytes"]
+        var status = 200
+        var range = 0..<data.count
+        if let header = urlSchemeTask.request.value(forHTTPHeaderField: "Range"),
+           let requested = Self.byteRange(header, size: data.count) {
+            status = 206
+            range = requested
+            headers["Content-Range"] = "bytes \(range.lowerBound)-\(range.upperBound - 1)/\(data.count)"
+        }
+        headers["Content-Length"] = String(range.count)
+        guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers) else {
+            urlSchemeTask.didFailWithError(URLError(.cannotParseResponse))
+            return
+        }
+        urlSchemeTask.didReceive(response)
+        urlSchemeTask.didReceive(data.subdata(in: range))
+        urlSchemeTask.didFinish()
+    }
+
+    /// The bytes a `Range: bytes=…` header asks for (first range only); nil when it can't be satisfied.
+    static func byteRange(_ header: String, size: Int) -> Range<Int>? {
+        guard header.hasPrefix("bytes="), size > 0,
+              let spec = header.dropFirst("bytes=".count).split(separator: ",").first
+        else { return nil }
+        let parts = spec.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2 else { return nil }
+        if parts[0].isEmpty {
+            guard let suffix = Int(parts[1]), suffix > 0 else { return nil }
+            return max(0, size - suffix)..<size
+        }
+        guard let start = Int(parts[0]), start >= 0, start < size else { return nil }
+        let end = parts[1].isEmpty ? size - 1 : min(Int(parts[1]) ?? -1, size - 1)
+        guard end >= start else { return nil }
+        return start..<(end + 1)
+    }
+
+    func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
+}
