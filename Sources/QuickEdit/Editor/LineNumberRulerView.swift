@@ -49,7 +49,7 @@ final class LineNumberRulerView: NSRulerView {
         let rect = dirtyRect.intersection(bounds)
         NSColor.textBackgroundColor.setFill()
         rect.fill()
-        NSColor.separatorColor.withAlphaComponent(0.5).setFill()
+        NSColor.separatorColor.withAlphaComponent(0.25).setFill()
         NSRect(x: bounds.maxX - 1, y: rect.minY, width: 1, height: rect.height).fill()
 
         guard let textView, let layoutManager = textView.layoutManager, let container = textView.textContainer else { return }

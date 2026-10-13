@@ -2,13 +2,15 @@
 // Draws QuickEdit's Icon Composer icon: the layer PNGs (AppIcon.icon/Assets/*.png, on a 1024 pt canvas) and the
 // icon.json that stacks them over a gradient fill with Liquid Glass, in light and dark. macOS derives the tinted and
 // clear styles from these; check all six with Icon Composer's `ictool --rendition` (Default, Dark, Tinted*, Clear*).
-// Usage: swift scripts/make-icon.swift [--concept 1|2|3] [Resources/AppIcon.icon]   (or `make icon`)
+// Usage: swift scripts/make-icon.swift [--concept 1-4] [Resources/AppIcon.icon]   (or `make icon`)
 //
-// Three concepts live here so each one stays reproducible; `defaultConcept` is the shipped icon.
+// The concepts live here so each one stays reproducible; `defaultConcept` is the shipped icon.
 //   1. Spark braces: white `{ }` with a yellow lightning bolt between them, on electric violet.
 //   2. Code pane: a dark editor pane with syntax-colored, indented code and a bright caret, on sunset orange.
 //   3. Dash page: a forward-leaning page with a coral `</>` tag and speed streaks behind it, on white (light)
 //      or black (dark), so the icon follows the system appearance.
+//   4. Code page: an upright source file with a folded corner, the coral `</>` and faint indented code lines,
+//      on the same neutral white/black field.
 //
 // Unlike NoteMD's script, this one also writes icon.json, because each concept has its own fill and layers.
 // A tweak made in Icon Composer is overwritten by the next redraw: port it into the constants below.
@@ -19,8 +21,8 @@ let defaultConcept = 3
 var arguments = Array(CommandLine.arguments.dropFirst())
 var conceptNumber = defaultConcept
 if let i = arguments.firstIndex(of: "--concept") {
-    guard i + 1 < arguments.count, let n = Int(arguments[i + 1]), (1...3).contains(n) else {
-        FileHandle.standardError.write(Data("usage: make-icon.swift [--concept 1|2|3] [AppIcon.icon]\n".utf8))
+    guard i + 1 < arguments.count, let n = Int(arguments[i + 1]), (1...4).contains(n) else {
+        FileHandle.standardError.write(Data("usage: make-icon.swift [--concept 1-4] [AppIcon.icon]\n".utf8))
         exit(64)
     }
     conceptNumber = n
@@ -228,6 +230,28 @@ func codePane() -> Concept {
     )
 }
 
+// Shared by concepts 3 and 4: a neutral field, white in light mode and black in dark mode, with a coral `</>`.
+// icon.json turns the page grey on white and near-white on black so it never vanishes into the fill.
+let neutralFill = (light: ["#FFFFFF", "#ECEDF1"], dark: ["#2A2B30", "#050506"])
+let paper = (light: ["#E4E7EC", "#C5CAD4"], dark: ["#FFFFFF", "#DDE1E8"])
+let coral = ("#FF7A45", "#F2386E")
+
+/// Centerline of a `</>` tag filling `r` (the slash overshoots a little); stroke it with round caps and joins.
+func tagCenterline(in r: NSRect) -> NSBezierPath {
+    let chevron = r.width * 0.26
+    let lean = r.width * 0.10
+    let p = NSBezierPath()
+    p.move(to: NSPoint(x: r.minX + chevron, y: r.maxY))
+    p.line(to: NSPoint(x: r.minX, y: r.midY))
+    p.line(to: NSPoint(x: r.minX + chevron, y: r.minY))
+    p.move(to: NSPoint(x: r.maxX - chevron, y: r.maxY))
+    p.line(to: NSPoint(x: r.maxX, y: r.midY))
+    p.line(to: NSPoint(x: r.maxX - chevron, y: r.minY))
+    p.move(to: NSPoint(x: r.midX - lean, y: r.minY - r.height * 0.06))
+    p.line(to: NSPoint(x: r.midX + lean, y: r.maxY + r.height * 0.06))
+    return p
+}
+
 /// 3. Dash page: a file whipping forward with a `</>` tag, speed streaks trailing behind it.
 func dashPage() -> Concept {
     let pageSize = NSSize(width: unit * 0.58, height: unit * 0.74)
@@ -237,34 +261,17 @@ func dashPage() -> Concept {
     let tagStroke = unit * 0.08
     let streakHeight = unit * 0.07
     let streaks: [(y: CGFloat, length: CGFloat)] = [(0.70, 0.30), (0.50, 0.42), (0.30, 0.24)]  // y in page heights
-    // Neutral field, white in light mode and black in dark mode. icon.json turns the page grey on white and
-    // near-white on black so it never vanishes into the fill; the coral tag and streaks read on both.
-    let paper = (light: ["#E4E7EC", "#C5CAD4"], dark: ["#FFFFFF", "#DDE1E8"])
-    let coral = ("#FF7A45", "#F2386E"), streak = ("#FFA27A", "#FF6F6A")
+    let streak = ("#FFA27A", "#FF6F6A")  // coral-peach: reads on both the white and the black field
 
     let page = NSRect(x: art.maxX - pageSize.width - unit * 0.04, y: art.midY - pageSize.height / 2,
                       width: pageSize.width, height: pageSize.height)
     let tag = NSRect(x: page.midX - tagSize.width / 2, y: page.midY - tagSize.height / 2,
                      width: tagSize.width, height: tagSize.height)
-    func tagCenterline() -> NSBezierPath {
-        let chevron = tag.width * 0.26
-        let p = NSBezierPath()
-        p.move(to: NSPoint(x: tag.minX + chevron, y: tag.maxY))
-        p.line(to: NSPoint(x: tag.minX, y: tag.midY))
-        p.line(to: NSPoint(x: tag.minX + chevron, y: tag.minY))
-        p.move(to: NSPoint(x: tag.maxX - chevron, y: tag.maxY))
-        p.line(to: NSPoint(x: tag.maxX, y: tag.midY))
-        p.line(to: NSPoint(x: tag.maxX - chevron, y: tag.minY))
-        let lean = tag.width * 0.10
-        p.move(to: NSPoint(x: tag.midX - lean, y: tag.minY - tag.height * 0.06))
-        p.line(to: NSPoint(x: tag.midX + lean, y: tag.maxY + tag.height * 0.06))
-        return p
-    }
     return Concept(
-        fill: ["#FFFFFF", "#ECEDF1"], darkFill: ["#2A2B30", "#050506"],
+        fill: neutralFill.light, darkFill: neutralFill.dark,
         layers: [
             ("tag", {
-                gradientFill(leaned(outline(tagCenterline(), width: tagStroke), slant: slant, axis: page.midY),
+                gradientFill(leaned(outline(tagCenterline(in: tag), width: tagStroke), slant: slant, axis: page.midY),
                              coral.0, coral.1)
             }),
             ("page", {
@@ -285,9 +292,62 @@ func dashPage() -> Concept {
     )
 }
 
+/// 4. Code page: an upright source file (folded corner) with the `</>` tag over a few indented code lines.
+func codePage() -> Concept {
+    let pageSize = NSSize(width: unit * 0.74, height: unit * 0.94)
+    let pageRadius = unit * 0.07
+    let foldSize = unit * 0.22
+    let tagSize = NSSize(width: unit * 0.38, height: unit * 0.25)
+    let tagStroke = unit * 0.08
+    let tagToCode = unit * 0.10
+    let lineHeight = unit * 0.05
+    let lineGap = unit * 0.05
+    let lines: [(indent: CGFloat, width: CGFloat)] = [(0, 0.40), (0.08, 0.32), (0, 0.20)]  // in units
+    let ink = "#A3AAB6"  // faint grey code: present on the grey (light) and the white (dark) page
+    let fold = (light: ["#CDD2DA", "#B3BAC5"], dark: ["#DADDE3", "#BFC5CE"])
+
+    let page = NSRect(x: art.midX - pageSize.width / 2, y: art.midY - pageSize.height / 2,
+                      width: pageSize.width, height: pageSize.height)
+    // Tag and code form one block, centered a little low because the fold takes the top-right corner.
+    let codeHeight = CGFloat(lines.count) * lineHeight + CGFloat(lines.count - 1) * lineGap
+    let blockTop = page.midY - unit * 0.03 + (tagSize.height + tagStroke + tagToCode + codeHeight) / 2
+    let tag = NSRect(x: page.midX - tagSize.width / 2, y: blockTop - tagStroke / 2 - tagSize.height,
+                     width: tagSize.width, height: tagSize.height)
+    let lineLeft = tag.minX - tagStroke / 2
+    let firstLineTop = tag.minY - tagStroke / 2 - tagToCode
+    return Concept(
+        fill: neutralFill.light, darkFill: neutralFill.dark,
+        layers: [
+            ("tag", { gradientFill(outline(tagCenterline(in: tag), width: tagStroke), coral.0, coral.1) }),
+            ("code", {
+                color(ink).setFill()
+                for (i, line) in lines.enumerated() {
+                    let y = firstLineTop - lineHeight - CGFloat(i) * (lineHeight + lineGap)
+                    pill(NSRect(x: lineLeft + unit * line.indent, y: y, width: unit * line.width,
+                                height: lineHeight)).fill()
+                }
+            }),
+            ("fold", {
+                let corner = [NSPoint(x: page.maxX - foldSize, y: page.maxY),
+                              NSPoint(x: page.maxX - foldSize, y: page.maxY - foldSize),
+                              NSPoint(x: page.maxX, y: page.maxY - foldSize)]
+                gradientFill(roundedPolygon(corner, radius: pageRadius * 0.4), fold.dark[0], fold.dark[1])
+            }),
+            ("page", {
+                // The top-right corner is cut off where the fold turns over.
+                let outlinePoints = [NSPoint(x: page.minX, y: page.minY), NSPoint(x: page.maxX, y: page.minY),
+                                     NSPoint(x: page.maxX, y: page.maxY - foldSize),
+                                     NSPoint(x: page.maxX - foldSize, y: page.maxY), NSPoint(x: page.minX, y: page.maxY)]
+                gradientFill(roundedPolygon(outlinePoints, radius: pageRadius), paper.dark[0], paper.dark[1])
+            }),
+        ],
+        layerFills: ["page": paper, "fold": fold]
+    )
+}
+
 // MARK: - Output
 
-let concept = [sparkBraces, codePane, dashPage][conceptNumber - 1]()
+let concept = [sparkBraces, codePane, dashPage, codePage][conceptNumber - 1]()
 
 // icon.json is built as lines in the shape and formatting Icon Composer and oxfmt produce (keys sorted,
 // 2-space indent), so a redraw doesn't churn the diff.
