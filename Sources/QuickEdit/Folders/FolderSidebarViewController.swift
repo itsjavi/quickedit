@@ -18,6 +18,8 @@ final class FolderNode: NSObject {
 final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
     let model: FolderModel
     private let outlineView = NSOutlineView()
+    /// One image for every folder row, so its tinted rendering is made once, not per row and tab.
+    private static let folderImage = NSImage(systemSymbolName: "folder", accessibilityDescription: "Folder")
     private var nodes: [URL: FolderNode] = [:]
     private var isSyncingExpansion = false
     /// The tree changed while this sidebar's tab wasn't on screen: it reloads when shown.
@@ -104,31 +106,25 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
         guard let node = item as? FolderNode else { return nil }
         let identifier = NSUserInterfaceItemIdentifier("cell")
         let cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView ?? {
-            let cell = NSTableCellView()
+            // Frames and autoresizing, not constraints: a new tab builds every visible row of its sidebar, and
+            // Auto Layout made that a large part of opening a file.
+            let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: 200, height: 22))
             cell.identifier = identifier
-            let image = NSImageView()
+            let image = NSImageView(frame: NSRect(x: 2, y: 3, width: 16, height: 16))
+            image.autoresizingMask = [.minYMargin, .maxYMargin]
             let text = NSTextField(labelWithString: "")
             text.lineBreakMode = .byTruncatingMiddle
-            image.translatesAutoresizingMaskIntoConstraints = false
-            text.translatesAutoresizingMaskIntoConstraints = false
+            text.frame = NSRect(x: 23, y: 3, width: 175, height: 16)
+            text.autoresizingMask = [.width, .minYMargin, .maxYMargin]
             cell.addSubview(image)
             cell.addSubview(text)
             cell.imageView = image
             cell.textField = text
-            NSLayoutConstraint.activate([
-                image.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
-                image.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                image.widthAnchor.constraint(equalToConstant: 16),
-                image.heightAnchor.constraint(equalToConstant: 16),
-                text.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 5),
-                text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -2),
-                text.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            ])
             return cell
         }()
         cell.textField?.stringValue = node.entry.name
         cell.imageView?.image = node.entry.isDirectory
-            ? NSImage(systemSymbolName: "folder", accessibilityDescription: "Folder")
+            ? Self.folderImage
             : NSWorkspace.shared.icon(for: UTType(filenameExtension: node.url.pathExtension) ?? .plainText)
         cell.imageView?.contentTintColor = node.entry.isDirectory ? .controlAccentColor : nil
         let dimmed = node.entry.isHidden || node.entry.isIgnored

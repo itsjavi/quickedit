@@ -63,6 +63,9 @@ enum FolderOpener {
         guard (window.tabbedWindows?.count ?? 1) <= 1,
               let host = NSApp.windows.first(where: { $0 !== window && $0.isVisible && $0.tabbingIdentifier == window.tabbingIdentifier })
         else { return }
+        // Joining at the group's size: otherwise AppKit resizes and redraws every other tab to match the new one,
+        // which grows with the number of tabs open.
+        if window.frame != host.frame { window.setFrame(host.frame, display: false) }
         host.addTabbedWindow(window, ordered: .above)
     }
 }
