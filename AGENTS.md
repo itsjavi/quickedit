@@ -86,8 +86,8 @@ Mark a task Done only when:
 - Relevant validation has passed, with limitations documented.
 - Its changes are integrated into the main working tree.
 - Any required visual evidence and completion summary are recorded.
-- User-facing features and substantial UI changes are reflected in the README (see "Public docs"), or the task notes
-  say why they are not needed.
+- User-facing features and substantial UI changes are reflected in the README and the website (see "Public docs"),
+  or the task notes say why they are not needed.
 
 Writing workers update their own tasks through the CLI. Read-only
 workers return findings and proposed updates to the orchestrator,
@@ -232,7 +232,9 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `Sources/QuickEditThumbnail`                    | Quick Look thumbnails: the first lines of the same types on a page           |
 | `Packages/QuickEditSyntax`                      | Local package: language registry, vendored tree-sitter grammars, highlighter |
 | `Resources/`                                    | Info.plist, privacy manifest, `AppIcon.icon`                                 |
-| `scripts/`                                      | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`   |
+| `scripts/`                                      | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`,  |
+|                                                 | `og-image.html` (the website's social card)                                  |
+| `web/`, `.github/workflows/pages.yml`           | Website (https://itsjavi.com/quickedit/) and its GitHub Pages deployment     |
 | `VERSION`                                       | The marketing version; the build number is the commit count                  |
 
 ### Releases
@@ -244,9 +246,19 @@ user asks for a release or a notarized build. Bump `VERSION` for each release.
 
 ### Public docs
 
-The README is part of the product. Any task that adds, removes or renames a user-facing feature, or substantially
-changes the UI, updates the README's feature list and screenshots in the same task. There's no website or intro video
-yet.
+The README and the website are part of the product. Any task that adds, removes or renames a user-facing feature, or
+substantially changes the UI, updates both in the same task:
+
+- `README.md`: the feature list, and the screenshot table (`docs/screenshots/`) when it shows changed UI.
+- `web/index.html`: the feature rows, language list, details grid and Privacy section (also when the app starts using
+  the network, e.g. update checks), and the screenshots in `web/assets/`: WebP copies of `docs/screenshots/`
+  (`cwebp -q 86 -m 6 -alpha_q 100`, `-resize 1600 0` for all but the hero `editor-*`).
+- `scripts/og-image.html`: re-render `web/assets/og.png` (command in its header) when the hero screenshot, the icon or
+  the tagline changes.
+
+The website deploys to https://itsjavi.com/quickedit/ on pushes to main that touch `web/`
+(`.github/workflows/pages.yml`). Never leave published copy or screenshots showing UI that no longer exists. There's
+no intro video yet.
 
 ### Builds
 

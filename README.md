@@ -2,6 +2,8 @@
 
 A native macOS code viewer and editor for small, quick edits: a modern TextEdit, a lighter Sublime Text. Not an IDE.
 
+**[Website](https://itsjavi.com/quickedit/)** · [Features](#features) · [Install](#install) · [MIT License](LICENSE)
+
 | Light                                                       | Dark                                                      |
 | ----------------------------------------------------------- | --------------------------------------------------------- |
 | ![TypeScript in the editor](docs/screenshots/editor-light.png) | ![TypeScript in dark mode](docs/screenshots/editor-dark.png) |

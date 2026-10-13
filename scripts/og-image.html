@@ -1,0 +1,91 @@
+<!doctype html>
+<!--
+  Source of web/assets/og.png, the 1200x630 social card. Re-render from the repository root with headless Chrome
+  (or Playwright's chrome-headless-shell, which takes the same flags and never shows a Dock icon):
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+    --force-device-scale-factor=1 --window-size=1200,630 \
+    --screenshot="$PWD/web/assets/og.png" "file://$PWD/scripts/og-image.html"
+  Re-render when the hero screenshot (web/assets/editor-dark.webp), the icon or the tagline changes.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>QuickEdit social card</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+
+      body {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background:
+          radial-gradient(45% 50% at 38% 80%, rgb(236 106 76 / 0.3), transparent),
+          radial-gradient(45% 50% at 64% 84%, rgb(224 80 122 / 0.26), transparent),
+          radial-gradient(40% 40% at 50% 0%, rgb(236 106 76 / 0.12), transparent), #0f1012;
+        color: #ececef;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+        text-align: center;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .icon {
+        width: 76px;
+        height: 76px;
+        margin-top: 40px;
+        filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.5));
+      }
+
+      .pill {
+        margin: 16px 0 0;
+        padding: 3px 12px;
+        border: 1px solid #2a2c32;
+        border-radius: 999px;
+        background: #1b1c20;
+        color: #a2a5b0;
+        font-size: 15px;
+      }
+
+      h1 {
+        margin: 14px 0 0;
+        font-size: 58px;
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        font-weight: 700;
+      }
+
+      p.lead {
+        max-width: 800px;
+        margin: 16px 0 0;
+        color: #a2a5b0;
+        font-size: 21px;
+        line-height: 1.45;
+      }
+
+      .shot {
+        position: absolute;
+        left: 50%;
+        top: 418px;
+        width: 1040px;
+        transform: translateX(-50%);
+        filter: drop-shadow(0 -6px 40px rgb(0 0 0 / 0.55));
+      }
+    </style>
+  </head>
+  <body>
+    <img class="icon" src="../web/assets/icon-dark.png" alt="" />
+    <p class="pill">Free &amp; open source · Native on macOS 26</p>
+    <h1>Quick, safe edits<br />for code and text files.</h1>
+    <p class="lead">
+      A modern TextEdit, a lighter Sublime Text: tree-sitter highlighting, files saved byte for
+      byte, CSV tables, Markdown and HTML preview, and voice notes.
+    </p>
+    <img class="shot" src="../web/assets/editor-dark.webp" alt="" />
+  </body>
+</html>
