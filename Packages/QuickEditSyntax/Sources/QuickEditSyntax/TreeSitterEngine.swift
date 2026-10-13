@@ -27,6 +27,13 @@ final class TreeSitterEngine: HighlightEngine {
     private var styles = StyleScan()
     private let injections = InjectionCache()
 
+    /// When set and the last incremental parse took at least this long, edits only adjust the tree and the reparse
+    /// waits for `parsePending()`: typing in a large Markdown file stays fast, and colours catch up when typing
+    /// pauses. Nil parses after every edit.
+    var deferredParseThreshold: Duration?
+    private var lastParseDuration: Duration = .zero
+    private(set) var hasPendingParse = false
+
     init(grammar: GrammarConfiguration, stylesheets: GrammarConfiguration? = nil) {
         self.grammar = grammar
         self.stylesheetGrammar = stylesheets
@@ -42,6 +49,13 @@ final class TreeSitterEngine: HighlightEngine {
             styles = StyleScan.scan(text)
         }
         tree = parser.parse(tree: MutableTree?.none, readBlock: rootReadBlock(for: text))
+        // A full parse says little about incremental ones: those are timed from the first edit.
+        lastParseDuration = .zero
+        hasPendingParse = false
+    }
+
+    func rebind(_ text: NSString) {
+        self.text = text
     }
 
     /// The host grammar reads the text with stylesheets blanked (same length and line breaks), so CSS braces
@@ -98,12 +112,33 @@ final class TreeSitterEngine: HighlightEngine {
                 changed.append(range)
             }
         }
-        if let newTree = parser.parse(tree: oldTree, readBlock: rootReadBlock(for: newText)) {
-            changed += newTree.changedRanges(from: oldTree).map { $0.bytes.range }
-            tree = newTree
+        if let threshold = deferredParseThreshold, lastParseDuration >= threshold {
+            hasPendingParse = true
+        } else {
+            changed += reparse(oldTree)
         }
         let all = NSRange(location: 0, length: newText.length)
         return normalized(changed.compactMap { $0.clipped(to: all) })
+    }
+
+    func parsePending() -> [NSRange] {
+        guard hasPendingParse, let tree else { return [] }
+        let all = NSRange(location: 0, length: text.length)
+        return normalized(reparse(tree).compactMap { $0.clipped(to: all) })
+    }
+
+    /// Parses the edited `oldTree` against the current text, timing it; returns tree-sitter's changed ranges.
+    private func reparse(_ oldTree: MutableTree) -> [NSRange] {
+        let clock = ContinuousClock()
+        let start = clock.now
+        var changed: [NSRange] = []
+        if let newTree = parser.parse(tree: oldTree, readBlock: rootReadBlock(for: text)) {
+            changed = newTree.changedRanges(from: oldTree).map { $0.bytes.range }
+            tree = newTree
+        }
+        lastParseDuration = clock.now - start
+        hasPendingParse = false
+        return changed
     }
 
     func tokens(in range: NSRange) -> [SyntaxToken] {
@@ -129,14 +164,24 @@ final class TreeSitterEngine: HighlightEngine {
     }
 
     func foldRanges() -> [FoldRegion] {
+        foldRanges(in: nil)
+    }
+
+    func foldRanges(within range: NSRange) -> [FoldRegion] {
+        foldRanges(in: range)
+    }
+
+    private func foldRanges(in range: NSRange?) -> [FoldRegion] {
         guard let tree else { return [] }
         let builder = FoldBuilder(text: text, lines: lines)
+        let bytes = range.map { UInt32($0.location * 2)..<UInt32($0.upperBound * 2) }
         var regions: [FoldRegion] = []
-        builder.collect(tree: tree, rules: grammar.foldRules, into: &regions)
+        builder.collect(tree: tree, rules: grammar.foldRules, into: &regions, within: bytes)
         if let css = stylesheetGrammar {
             for block in styles.blocks where block.content.length > 0 {
+                if let range, NSIntersectionRange(block.content, range).length == 0 { continue }
                 guard let layer = stylesheetLayer(block, css) else { continue }
-                builder.collect(tree: layer.tree, rules: css.foldRules, into: &regions)
+                builder.collect(tree: layer.tree, rules: css.foldRules, into: &regions, within: bytes)
             }
             injections.finishPass()
         }

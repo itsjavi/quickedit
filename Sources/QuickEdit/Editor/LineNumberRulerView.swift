@@ -1,4 +1,5 @@
 import AppKit
+import QuickEditCore
 
 /// The line-number gutter: a vertical ruler that numbers logical lines (a wrapped line gets one number) and
 /// highlights the caret's line. It stays put when the text scrolls horizontally.
@@ -90,7 +91,12 @@ final class LineNumberRulerView: NSRulerView {
         let glyph = layoutManager.glyphIndex(for: NSPoint(x: 0, y: inText.y - textView.textContainerOrigin.y), in: container)
         let character = layoutManager.characterIndexForGlyph(at: glyph)
         let line = lineIndex.line(of: character, in: textView.string as NSString)
-        if editor.foldMarkers()[line] != nil { editor.toggleFold(atLine: line) } else { super.mouseDown(with: event) }
+        let text = textView.string as NSString
+        let lineStart = lineIndex.start(ofLine: line, in: text)
+        let isLastLine = line + 1 >= lineIndex.lineCount(in: text)
+        let lineEnd = isLastLine ? text.length : lineIndex.start(ofLine: line + 1, in: text)
+        let lineRange = NSRange(location: lineStart, length: lineEnd - lineStart)
+        if editor.foldMarkers(in: lineRange)[line] != nil { editor.toggleFold(atLine: line) } else { super.mouseDown(with: event) }
     }
 
     override func drawHashMarksAndLabels(in dirtyRect: NSRect) {
@@ -107,7 +113,15 @@ final class LineNumberRulerView: NSRulerView {
         let font = numberFont
         let yOffset = convert(NSPoint.zero, from: textView).y + textView.textContainerOrigin.y
         let right = ruleThickness - 10 - Self.foldColumn
-        let markers = editor?.foldMarkers() ?? [:]
+        // Only the visible lines' markers (each redraw after an edit would otherwise walk a large file's whole tree),
+        // up to the end of the last visible line, where its region's hidden range starts.
+        let glyphs = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: container)
+        let visibleText = layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let lastLine = lineIndex.line(of: visibleText.upperBound, in: text)
+        let lastLineEnd = lastLine + 1 < starts.count ? starts[lastLine + 1] : text.length
+        let markerRange = NSRange(
+            location: visibleText.location, length: min(lastLineEnd, visibleText.upperBound + 10_000) - visibleText.location)
+        let markers = editor?.foldMarkers(in: markerRange) ?? [:]
 
         func drawNumber(_ line: Int, baseline: CGFloat) {
             let attributes: [NSAttributedString.Key: Any] = [
@@ -122,8 +136,6 @@ final class LineNumberRulerView: NSRulerView {
             }
         }
 
-        let visible = textView.visibleRect
-        let glyphs = layoutManager.glyphRange(forBoundingRect: visible, in: container)
         layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { fragment, _, _, range, _ in
             let character = layoutManager.characterIndexForGlyph(at: range.location)
             let line = self.lineIndex.line(of: character, in: text)

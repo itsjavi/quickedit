@@ -174,7 +174,14 @@ final class EditorTextView: NSTextView {
             return NSRect(x: 0, y: extra.minY + origin.y, width: bounds.width, height: extra.height)
         }
         let paragraph = text.paragraphRange(for: NSRange(location: min(selection.location, text.length), length: 0))
-        let glyphs = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
+        var glyphs = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
+        if glyphs.length > 10_000 {
+            // A long logical line (a minified file) is measured only where it's on screen: all of it would mean
+            // laying out megabytes of wrapped text on every keystroke.
+            let visible = layoutManager.glyphRange(
+                forBoundingRectWithoutAdditionalLayout: visibleRect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
+            glyphs = NSIntersectionRange(glyphs, visible)
+        }
         guard glyphs.length > 0 else { return nil }
         var union = NSRect.null
         layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { rect, _, fragmentContainer, _, _ in

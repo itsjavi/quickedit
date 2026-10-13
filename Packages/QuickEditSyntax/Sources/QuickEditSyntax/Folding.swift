@@ -42,13 +42,17 @@ struct FoldBuilder {
 
     /// Walks the multi-line part of the tree (a single-line node can't contain a fold) and folds the nodes the
     /// grammar's rules name.
-    func collect(tree: MutableTree, rules: [Int: [FoldRules.Rule]], into regions: inout [FoldRegion]) {
+    /// Appends the regions of `tree`'s foldable nodes; with `bytes`, only nodes overlapping it are visited.
+    func collect(
+        tree: MutableTree, rules: [Int: [FoldRules.Rule]], into regions: inout [FoldRegion], within bytes: Range<UInt32>? = nil
+    ) {
         guard !rules.isEmpty, let root = tree.rootNode else { return }
         let cursor = root.treeCursor
         while true {
             if let node = cursor.currentNode {
                 let points = node.pointRange
-                if points.upperBound.row > points.lowerBound.row {
+                let overlaps = bytes.map { node.byteRange.upperBound > $0.lowerBound && node.byteRange.lowerBound < $0.upperBound } ?? true
+                if overlaps, points.upperBound.row > points.lowerBound.row {
                     if node.isNamed, let candidates = rules[node.symbol], candidates.contains(where: { $0.matches(node) }),
                         let region = region(for: node)
                     {
@@ -57,7 +61,11 @@ struct FoldBuilder {
                     if cursor.goToFirstChild() { continue }
                 }
             }
-            while !cursor.gotoNextSibling() {
+            while true {
+                if cursor.gotoNextSibling() {
+                    // Siblings that start past the range end this level.
+                    guard let bytes, let next = cursor.currentNode, next.byteRange.lowerBound >= bytes.upperBound else { break }
+                }
                 guard cursor.gotoParent() else { return }
             }
         }

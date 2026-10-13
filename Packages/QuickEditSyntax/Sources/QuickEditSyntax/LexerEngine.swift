@@ -23,6 +23,10 @@ final class LexerEngine: HighlightEngine {
         self.lexer = lexer
     }
 
+    func rebind(_ text: NSString) {
+        self.text = text
+    }
+
     func setText(_ text: NSString) {
         self.text = text
         lines = LineIndex(text: text)

@@ -44,7 +44,7 @@ struct StatusBarView: View {
             if state.previewKind != nil {
                 previewControls
             }
-            if state.isTableAvailable {
+            if state.isTableAvailable || state.isTableTooLarge {
                 Picker("View", selection: Binding(get: { state.showsTable }, set: { controller?.setShowsTable($0) })) {
                     Image(systemName: "doc.plaintext").help("Text").tag(false)
                     Image(systemName: "tablecells").help("Table").tag(true)
@@ -53,7 +53,8 @@ struct StatusBarView: View {
                 .labelsHidden()
                 .controlSize(.mini)
                 .fixedSize()
-                .help("Edit as text or as a table (⌥⌘T)")
+                .disabled(state.isTableTooLarge)
+                .help(state.isTableTooLarge ? "Too large to edit as a table (over 25 MB)" : "Edit as text or as a table (⌥⌘T)")
             }
             languageMenu
             indentationMenu

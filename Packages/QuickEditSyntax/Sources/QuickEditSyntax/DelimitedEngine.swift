@@ -12,6 +12,10 @@ final class DelimitedEngine: HighlightEngine {
         self.delimiter = delimiter
     }
 
+    func rebind(_ text: NSString) {
+        self.text = text
+    }
+
     func setText(_ text: NSString) {
         self.text = text
         lines = LineIndex(text: text)

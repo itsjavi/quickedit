@@ -17,6 +17,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     let preview = PreviewModel()
     private(set) var colorizer: SyntaxColorizer!
     let lineIndex = LineIndex()
+    private let riskyIndex = RiskyIndex()
     private var settings: AppSettings { .shared }
     var state: EditorState { document.state }
 
@@ -262,10 +263,18 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         textView.isSelectable = true
         textView.highlightsCurrentLine = settings.highlightCurrentLine
         layoutManager.showsInvisibles = settings.showInvisibles
-        applyWrap(settings.wrapLines)
         applyLineNumbers(settings.showLineNumbers)
+        // Wrapping sizes the text view to the text area, which the line numbers inset; both relayout all the text,
+        // so only when they changed (any setting change reaches every open window).
+        if appliedLayout?.wrap != settings.wrapLines || appliedLayout?.lineNumbers != settings.showLineNumbers {
+            scrollView.tile()
+            applyWrap(settings.wrapLines)
+            appliedLayout = (settings.wrapLines, settings.showLineNumbers)
+        }
         applyBaseAttributes()
     }
+
+    private var appliedLayout: (wrap: Bool, lineNumbers: Bool)?
 
     /// The attributes every character has, kept up to date by `applyBaseAttributes()`.
     private var currentBaseAttributes: [NSAttributedString.Key: Any] = [:]
@@ -283,6 +292,12 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     /// The whole text uses one font and tab width; syntax colours are layout-manager temporary attributes.
     private func applyBaseAttributes() {
         let attributes = baseAttributes
+        // Unchanged font and tab width: leave the text alone. Setting attributes on all of it lays it out again,
+        // which takes seconds in a large file. (New text gets them in `willProcessEditing`.)
+        if let font = currentBaseAttributes[.font] as? NSFont, font == attributes[.font] as? NSFont,
+           currentBaseAttributes[.paragraphStyle] as? NSParagraphStyle == attributes[.paragraphStyle] as? NSParagraphStyle {
+            return
+        }
         currentBaseAttributes = attributes
         let storage = document.textStorage
         textView.typingAttributes = attributes
@@ -348,6 +363,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     func documentDidLoad(keeping selection: NSRange? = nil) {
         guard textView != nil else { return }
         lineIndex.invalidate()
+        riskyIndex.rebuild(document.textStorage.mutableString)
         applySettings()
         if let selection {
             let length = (textView.string as NSString).length
@@ -360,6 +376,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     }
 
     // MARK: Language
+
+    /// Table mode parses every cell and re-parses after each edit: past ~25 MB that takes seconds (TASK-40).
+    static let tableModeMaximumLength = 25_000_000
 
     /// Detects the language from the file name (and a `#!` line) unless the user picked one, then re-highlights.
     func updateLanguage() {
@@ -377,7 +396,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
             textView.indentation = state.indentation
         }
         colorizer.reset(language: language)
-        state.isTableAvailable = ["csv", "tsv"].contains(language.id)
+        let isDelimited = ["csv", "tsv"].contains(language.id)
+        state.isTableTooLarge = isDelimited && text.length > Self.tableModeMaximumLength
+        state.isTableAvailable = isDelimited && !state.isTableTooLarge
         if !state.isTableAvailable, state.showsTable { setShowsTable(false) }
         tableController?.reload()
         updatePreviewKind()
@@ -405,7 +426,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters) else { return }
         MainActor.assumeIsolated {
-            lineIndex.invalidate()
+            // Both indexes follow the edit instead of rescanning the text, which takes seconds in a 300 MB file.
+            let text = document.textStorage.mutableString
+            lineIndex.edit(editedRange: editedRange, changeInLength: delta, in: text)
+            riskyIndex.edit(editedRange: editedRange, changeInLength: delta, in: text)
             colorizer.textDidEdit(editedRange: editedRange, changeInLength: delta)
             adjustFolds(editedRange: editedRange, changeInLength: delta)
             if state.showsTable { tableController?.textDidChange() }
@@ -434,13 +458,16 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         let line = lineIndex.line(of: selection.location, in: text)
         let lineStart = lineIndex.start(ofLine: line, in: text)
         state.line = line + 1
-        state.column = text.substring(with: NSRange(location: lineStart, length: selection.location - lineStart)).count + 1
+        // Characters, not UTF-16 units, except far into a long line (a minified file), where counting them would
+        // take longer than a keystroke.
+        let prefix = NSRange(location: lineStart, length: selection.location - lineStart)
+        state.column = (prefix.length <= 10_000 ? text.substring(with: prefix).count : prefix.length) + 1
         state.selectionLength = selection.length
         state.lineCount = lineIndex.lineCount(in: text)
     }
 
     private func updateRiskyCount() {
-        state.riskyCount = RiskyCharacters.count(in: document.textStorage.string as NSString)
+        state.riskyCount = riskyIndex.count
     }
 
     // MARK: Commands

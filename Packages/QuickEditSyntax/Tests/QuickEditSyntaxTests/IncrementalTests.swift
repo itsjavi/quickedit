@@ -235,6 +235,52 @@ struct IncrementalTests {
         }
     }
 
+    /// The editor defers slow reparses until typing pauses: edits then only adjust the tree, queries in between
+    /// read the edited tree, and the catch-up parse must land exactly where parsing after every edit would.
+    @Test("deferred reparses catch up with a fresh parse", arguments: documents)
+    func deferredEdits(document: Document) {
+        let language = LanguageRegistry.language(id: document.language)!
+        var generator = SeededGenerator(seed: UInt64(document.language.utf8.reduce(11) { $0 &* 31 &+ UInt64($1) }))
+        let highlighter = SyntaxHighlighter(language: language)
+        highlighter.deferredParseThreshold = .zero  // defer every edit
+        var text = document.source as NSString
+        highlighter.setText(text)
+        for step in 0..<200 {
+            let location = Int.random(in: 0...text.length, using: &generator)
+            var range = NSRange(location: location, length: Int.random(in: 0...min(4, text.length - location), using: &generator))
+            range = text.rangeOfComposedCharacterSequences(for: range)
+            if range.length == 0, range.location < text.length {
+                range = NSRange(location: text.rangeOfComposedCharacterSequence(at: range.location).location, length: 0)
+            }
+            let insertion = Bool.random(using: &generator) ? document.snippets.randomElement(using: &generator)! : ""
+            let mutable = NSMutableString(string: text)
+            mutable.replaceCharacters(in: range, with: insertion)
+            text = mutable.copy() as! NSString
+            highlighter.applyEdit(replacing: range, with: (insertion as NSString).length, in: text)
+            // Typing on: a query on the edited, not yet reparsed tree must not trip over it.
+            _ = highlighter.tokens(in: NSRange(location: 0, length: text.length))
+            // Pauses now and then, as typing does.
+            guard step % 3 == 2 else { continue }
+            highlighter.parsePending()
+            #expect(!highlighter.hasPendingParse)
+            let fresh = SyntaxHighlighter(language: language)
+            fresh.setText(text)
+            let all = NSRange(location: 0, length: text.length)
+            let (tokens, expected) = (highlighter.tokens(in: all), fresh.tokens(in: all))
+            guard tokens == expected, highlighter.foldRanges() == fresh.foldRanges() else {
+                let mismatch = zip(tokens, expected).first { $0 != $1 }.map { "\($0.0) vs \($0.1)" } ?? "\(tokens.count) vs \(expected.count) tokens"
+                let message: Comment = "\(document.language) step \(step): differs from a fresh parse (\(tokens == expected ? "folds" : mismatch)) after replacing \(range) with \(insertion.debugDescription)\n\(text)"
+                if ["stsx", "sjsx"].contains(document.language) {
+                    // Also without deferral: stale <style> masks after comment edits in mangled text (TASK-39).
+                    withKnownIssue("TASK-39", isIntermittent: true) { Issue.record(message) }
+                } else {
+                    Issue.record(message)
+                }
+                return
+            }
+        }
+    }
+
     @Test("an edit far from the viewport reports a small range")
     func localInvalidation() {
         let lines = (0..<500).map { "const value\($0) = compute(\($0), \"text\");" }

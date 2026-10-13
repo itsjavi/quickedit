@@ -17,7 +17,12 @@ enum PreviewKind {
 
 /// What a window's preview pane shows; fed from the editor's (unsaved) text.
 @Observable final class PreviewModel {
-    var text = ""
+    /// The previewed text. Not observed itself: SwiftUI and the previews compared it with the last one on every
+    /// keystroke, which took most of the time typing in a large Markdown file. Views follow `revision` instead.
+    @ObservationIgnored var text = "" {
+        didSet { revision &+= 1 }
+    }
+    private(set) var revision = 0
     var kind = PreviewKind.markdown
     var directory = FileManager.default.homeDirectoryForCurrentUser
     var allowsRemoteContent = false
@@ -35,6 +40,7 @@ struct DocumentPreview: View {
         case .markdown:
             MarkdownPreview(
                 markdown: model.text,
+                revision: model.revision,
                 baseDirectory: model.directory,
                 accessRoot: model.directory,
                 allowsRemoteContent: model.allowsRemoteContent,
@@ -43,7 +49,7 @@ struct DocumentPreview: View {
                 onTranscribe: model.onTranscribe
             )
         case .html:
-            HTMLPreview(html: model.text, directory: model.directory, allowsRemoteContent: model.allowsRemoteContent, onOpenFile: model.onOpenFile)
+            HTMLPreview(html: model.text, revision: model.revision, directory: model.directory, allowsRemoteContent: model.allowsRemoteContent, onOpenFile: model.onOpenFile)
         }
     }
 }

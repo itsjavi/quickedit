@@ -10,6 +10,8 @@ import WebKit
 /// Links open in the default browser; the preview never navigates away from the document.
 struct HTMLPreview: NSViewRepresentable {
     var html: String
+    /// Changes whenever `html` does (cheaper to compare).
+    var revision: Int
     /// The document's folder: relative URLs resolve against it and nothing outside it can be loaded.
     var directory: URL
     var allowsRemoteContent: Bool
@@ -47,17 +49,17 @@ struct HTMLPreview: NSViewRepresentable {
         var loadTask: Task<Void, Never>?
         private var parent: HTMLPreview?
         private var base: URL?
-        private var shown: (html: String, base: URL?, active: Bool)?
+        private var shown: (revision: Int, base: URL?, active: Bool)?
         private var restoreScrollY: Double?
 
         func update(_ preview: HTMLPreview) {
             parent = preview
             fileHandler.accessRoot = preview.directory.canonical
             base = LocalFileSchemeHandler.url(for: preview.directory, isDirectory: true)
-            guard shown?.html != preview.html || shown?.base != base || shown?.active != preview.allowsRemoteContent else { return }
+            guard shown?.revision != preview.revision || shown?.base != base || shown?.active != preview.allowsRemoteContent else { return }
             // Typing reloads after a pause; the first load and permission changes go at once.
             let immediate = shown == nil || shown?.active != preview.allowsRemoteContent
-            shown = (preview.html, base, preview.allowsRemoteContent)
+            shown = (preview.revision, base, preview.allowsRemoteContent)
             scheduleLoad(immediate: immediate)
         }
 

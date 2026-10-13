@@ -11,6 +11,8 @@ import WebKit
 /// confined to `accessRoot`.
 struct MarkdownPreview: NSViewRepresentable {
     var markdown: String
+    /// Changes whenever `markdown` does (cheaper to compare).
+    var revision: Int
     /// Directory relative links and images resolve against.
     var baseDirectory: URL
     /// Files outside this folder can't be loaded by the page.
@@ -61,7 +63,7 @@ struct MarkdownPreview: NSViewRepresentable {
         private var isPageReady = false
         private var isLoading = false
         private var pendingHTML: String?
-        private var lastMarkdown: String?
+        private var lastRevision: Int?
         private var lastScrollLine: Int?
 
         func update(_ preview: MarkdownPreview) {
@@ -71,13 +73,13 @@ struct MarkdownPreview: NSViewRepresentable {
             if base != loadedBase || preview.allowsRemoteContent != loadedRemote {
                 loadedBase = base
                 loadedRemote = preview.allowsRemoteContent
-                lastMarkdown = nil
+                lastRevision = nil
                 isPageReady = false
                 isLoading = false
                 pendingHTML = nil
             }
-            if preview.markdown != lastMarkdown {
-                lastMarkdown = preview.markdown
+            if preview.revision != lastRevision {
+                lastRevision = preview.revision
                 let options = MarkdownRenderer.Options(frontMatter: preview.frontMatter, transcribeLinks: preview.onTranscribe != nil)
                 scheduleRender(preview.markdown, options: options, immediate: !isPageReady && !isLoading)
             }

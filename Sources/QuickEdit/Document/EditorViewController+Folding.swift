@@ -53,9 +53,10 @@ extension EditorViewController {
     }
 
     /// Gutter markers: one per line that starts a foldable region.
-    func foldMarkers() -> [Int: Bool] {
+    /// Fold markers (start line → folded) of the regions starting in `range` (the visible text), or in all of it.
+    func foldMarkers(in range: NSRange? = nil) -> [Int: Bool] {
         var markers: [Int: Bool] = [:]
-        for region in foldableRegions {
+        for region in range.map(colorizer.foldRegions(startingIn:)) ?? foldableRegions {
             let line = startLine(of: region)
             markers[line] = (markers[line] ?? false) || isFolded(region)
         }

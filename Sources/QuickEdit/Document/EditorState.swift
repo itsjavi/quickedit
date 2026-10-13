@@ -40,6 +40,8 @@ enum IndentationSource: String {
     var allowsRemoteContent = false
     /// CSV/TSV files can be edited as a table.
     var isTableAvailable = false
+    /// A CSV/TSV file too large for Table mode (`EditorViewController.tableModeMaximumLength`).
+    var isTableTooLarge = false
     var showsTable = false
     let voiceRecorder = VoiceRecorder()
     var showsVoiceRecorder = false

@@ -62,7 +62,8 @@ for byte as it came in, except what you changed. There's nothing to configure an
   only when you allow it for that window.
 - **CSV and TSV as a table.** Switch a CSV/TSV file to Table (⌥⌘T or the status bar) to edit it like a spreadsheet:
   edit cells, add or delete rows and columns, use the first row as headers. Every change rewrites only the cells it
-  touches, so quoting, the delimiter and line endings stay as they were, and ⌘Z undoes it.
+  touches, so quoting, the delimiter and line endings stay as they were, and ⌘Z undoes it. Files over 25 MB open
+  as text only.
 - **Lines.** Line numbers, current-line highlight, Go to Line (⌘L), move lines (⌃⌘↑/↓), duplicate (⇧⌘D), delete
   (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off.
 - **Code folding** for every language with a tree-sitter grammar (JSON, YAML, CSS, JS/TS, C/C++, Swift, Python,

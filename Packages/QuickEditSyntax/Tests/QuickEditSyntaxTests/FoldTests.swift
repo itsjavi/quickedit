@@ -22,6 +22,27 @@ struct FoldTests {
         }
     }
 
+    /// The gutter asks only for the regions starting in the visible text: walking just the nodes there must find
+    /// exactly what the whole tree's regions filtered to that range are, in every language's fixture.
+    @Test("Folds starting in a range match the full computation", arguments: HighlightTests.fixtures + MoreLanguagesTests.fixtures)
+    func foldsInRange(_ fixture: Fixture) {
+        let text = fixture.source as NSString
+        guard let language = LanguageRegistry.language(id: fixture.language) else { return }
+        let all = SyntaxHighlighter(language: language)
+        all.setText(text)
+        let full = all.foldRanges()
+        // A fresh highlighter, so the full list isn't cached and the ranged walk runs.
+        for start in stride(from: 0, through: text.length, by: max(1, text.length / 12)) {
+            for length in [1, 7, 40, text.length] {
+                let range = NSRange(location: start, length: min(length, text.length - start))
+                let ranged = SyntaxHighlighter(language: language)
+                ranged.setText(text)
+                let expected = full.filter { NSLocationInRange($0.hidden.location, range) }
+                #expect(ranged.foldRanges(startingIn: range) == expected, "\(fixture.language) \(range)")
+            }
+        }
+    }
+
     @Test("JSON: objects and arrays between their brackets, nested; single-line ones don't fold")
     func json() {
         let result = folds(

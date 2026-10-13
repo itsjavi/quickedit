@@ -17,6 +17,11 @@ public final class SyntaxHighlighter {
     private var folds: [FoldRegion]?
     private static let recentMaximumLength = 64 * 1024
 
+    /// Whether `applyEdit` diffs the tokens of recently queried ranges to report exact changes. That queries
+    /// those ranges again on every edit; a caller that recolours what's visible after each edit anyway (the
+    /// editor) turns it off.
+    public var tracksTokenChanges = true
+
     public init(language: Language) {
         self.language = language
         switch language.highlighting {
@@ -46,6 +51,31 @@ public final class SyntaxHighlighter {
         recent.removeAll()
         folds = nil
         engine.setText(text)
+    }
+
+    /// After `setText` with a snapshot (parsed off the main thread), switches to the live text with the same
+    /// contents, so later edits and token queries read it.
+    public func rebind(_ text: NSString) {
+        engine.rebind(text)
+    }
+
+    /// With a threshold, an edit made after an incremental parse that took at least that long only adjusts the
+    /// tree: the reparse waits for `parsePending()`, which the editor calls once typing pauses, so typing in a large
+    /// file stays fast. Nil (the default) parses after every edit.
+    public var deferredParseThreshold: Duration? {
+        didSet { (engine as? TreeSitterEngine)?.deferredParseThreshold = deferredParseThreshold }
+    }
+
+    /// An edit's reparse is waiting (see `deferredParseThreshold`).
+    public var hasPendingParse: Bool { engine.hasPendingParse }
+
+    /// Runs the waiting reparse; returns the ranges whose tokens may have changed.
+    @discardableResult
+    public func parsePending() -> [NSRange] {
+        guard engine.hasPendingParse else { return [] }
+        recent.removeAll()
+        folds = nil
+        return engine.parsePending()
     }
 
     /// Reports that `oldRange` (in the previous text) was replaced by `replacementLength` UTF-16 units, giving
@@ -100,6 +130,13 @@ public final class SyntaxHighlighter {
         return computed
     }
 
+    /// The foldable regions whose hidden range starts in `range`: the gutter's markers for the visible lines,
+    /// without walking the whole tree after every edit of a large file.
+    public func foldRanges(startingIn range: NSRange) -> [FoldRegion] {
+        let regions = folds ?? FoldBuilder.normalized(engine.foldRanges(within: range))
+        return regions.filter { NSLocationInRange($0.hidden.location, range) }
+    }
+
     /// Compiles the queries of `language`'s grammar ahead of time so the first `SyntaxHighlighter` doesn't pay
     /// for it. Thread-safe; call it from a background task.
     public static func prepare(_ language: Language) {
@@ -117,7 +154,7 @@ public final class SyntaxHighlighter {
     // MARK: - Recent ranges
 
     private func remember(_ range: NSRange, _ tokens: [SyntaxToken]) {
-        guard range.length > 0, range.length <= Self.recentMaximumLength, !engine.isPlainText else { return }
+        guard tracksTokenChanges, range.length > 0, range.length <= Self.recentMaximumLength, !engine.isPlainText else { return }
         recent.removeAll { $0.range == range }
         recent.append((range, tokens))
         if recent.count > Self.recentLimit {
@@ -196,12 +233,27 @@ protocol HighlightEngine: AnyObject {
     func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange]
     func tokens(in range: NSRange) -> [SyntaxToken]
     func foldRanges() -> [FoldRegion]
+    /// At least the regions of nodes that overlap `range` (the visible text), without walking the rest of the tree.
+    func foldRanges(within range: NSRange) -> [FoldRegion]
+    /// Points the engine at `text` without parsing it: the same contents it was parsed from (a snapshot).
+    func rebind(_ text: NSString)
+    /// An edit's reparse is waiting (see `SyntaxHighlighter.deferredParseThreshold`).
+    var hasPendingParse: Bool { get }
+    /// Runs the waiting reparse; returns the ranges whose tokens may have changed.
+    func parsePending() -> [NSRange]
+}
+
+extension HighlightEngine {
+    var hasPendingParse: Bool { false }
+    func parsePending() -> [NSRange] { [] }
 }
 
 final class PlainTextEngine: HighlightEngine {
     var isPlainText: Bool { true }
 
     func setText(_ text: NSString) {}
+
+    func rebind(_ text: NSString) {}
 
     func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange] {
         []
@@ -239,4 +291,5 @@ func normalized(_ ranges: [NSRange]) -> [NSRange] {
 extension HighlightEngine {
     var isPlainText: Bool { false }
     func foldRanges() -> [FoldRegion] { [] }
+    func foldRanges(within range: NSRange) -> [FoldRegion] { foldRanges() }
 }
