@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuickEdit: quick, safe edits for code and text files on the Mac</title>
+    <meta
+      name="description"
+      content="A native macOS code viewer and editor for small, quick edits: tree-sitter syntax highlighting, files saved byte for byte, CSV and TSV as a table, Markdown and HTML preview and voice notes. Free and open source."
+    />
+    <link rel="canonical" href="https://itsjavi.com/quickedit/" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1012" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="QuickEdit" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://itsjavi.com/quickedit/" />
+    <meta
+      property="og:title"
+      content="QuickEdit: quick, safe edits for code and text files on the Mac"
+    />
+    <meta
+      property="og:description"
+      content="A modern TextEdit, a lighter Sublime Text: a native Mac editor with tree-sitter highlighting that saves files byte for byte, except what you changed. Free and open source."
+    />
+    <meta property="og:image" content="https://itsjavi.com/quickedit/assets/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="QuickEdit app icon above the headline “Quick, safe edits for code and text files.” and the editor window in dark mode"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="QuickEdit: quick, safe edits for code and text files on the Mac"
+    />
+    <meta
+      name="twitter:description"
+      content="Tree-sitter highlighting, byte-for-byte saving, CSV tables, Markdown and HTML preview and voice notes in a native macOS editor. Free and open source."
+    />
+    <meta name="twitter:image" content="https://itsjavi.com/quickedit/assets/og.png" />
+    <meta
+      name="twitter:image:alt"
+      content="QuickEdit app icon above the headline “Quick, safe edits for code and text files.” and the editor window in dark mode"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "QuickEdit",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "macOS 26",
+        "description": "A native macOS code viewer and editor for small, quick edits, with tree-sitter syntax highlighting and byte-for-byte saving.",
+        "url": "https://itsjavi.com/quickedit/",
+        "license": "https://opensource.org/licenses/MIT",
+        "downloadUrl": "https://github.com/itsjavi/quickedit/releases/latest",
+        "author": { "@type": "Person", "name": "Javi Aguilar", "url": "https://itsjavi.com/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="QuickEdit home">
+          <picture>
+            <source srcset="assets/icon-dark.png" media="(prefers-color-scheme: dark)" />
+            <img src="assets/icon.png" width="32" height="32" alt="" />
+          </picture>
+          <span>QuickEdit</span>
+        </a>
+        <nav aria-label="Main">
+          <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#languages">Languages</a></li>
+            <li><a href="#privacy">Privacy</a></li>
+            <li><a href="#get">Get it</a></li>
+            <li>
+              <a class="nav-github" href="https://github.com/itsjavi/quickedit">
+                <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+                  <path
+                    fill="currentColor"
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                  />
+                </svg>
+                GitHub
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="container hero-copy">
+          <picture>
+            <source srcset="assets/icon-dark.png" media="(prefers-color-scheme: dark)" />
+            <img
+              class="hero-icon"
+              src="assets/icon.png"
+              width="112"
+              height="112"
+              alt="QuickEdit app icon"
+            />
+          </picture>
+          <p class="pill">Free &amp; open source · Native on macOS 26</p>
+          <h1>Quick, safe edits <br />for code and text files.</h1>
+          <p class="lead">
+            QuickEdit is a native Mac code viewer and editor for small, quick edits: a modern
+            TextEdit, a lighter Sublime Text, not an IDE. Open a file, change what you came to
+            change, and it's saved byte for byte as it came in, except what you changed.
+          </p>
+          <div class="actions">
+            <a
+              class="button button-primary"
+              href="https://github.com/itsjavi/quickedit/releases/latest"
+              data-release-download
+              >Download for Mac</a
+            >
+            <a class="button button-secondary" href="https://github.com/itsjavi/quickedit"
+              >View on GitHub</a
+            >
+          </div>
+          <p class="fineprint">
+            <span data-release-version>Latest release</span> · macOS 26 on Apple silicon · MIT
+            licensed
+          </p>
+          <p class="fineprint release-pending" data-release-pending hidden>
+            No release is out yet: <a href="#get">build it from source</a> in a minute.
+          </p>
+        </div>
+        <div class="container hero-shot">
+          <a href="assets/editor-light.webp" data-lightbox>
+            <picture>
+              <source srcset="assets/editor-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="assets/editor-light.webp"
+                width="2200"
+                height="1536"
+                alt="The QuickEdit window with three tabs, server.ts, cities.csv and README.md, showing a small TypeScript server with syntax highlighting, line numbers, the current line highlighted, and a status bar reading Ln 26, Col 44, TypeScript, Spaces: 2, UTF-8, LF."
+                fetchpriority="high"
+              />
+            </picture>
+          </a>
+        </div>
+      </section>
+
+      <section id="features" class="section features" aria-labelledby="features-title">
+        <div class="container">
+          <p class="eyebrow"><span aria-hidden="true">//</span> Features</p>
+          <h2 id="features-title">Small edits, done right.</h2>
+
+          <div class="feature" id="languages">
+            <div class="feature-copy">
+              <h3>Syntax highlighting with tree-sitter</h3>
+              <p>
+                Highlighting comes from tree-sitter grammars bundled with the app, so it follows the
+                structure of the code, not just its keywords. That includes
+                <a href="https://itsjavi.com/lumiose/">Lumiose</a> components (<code>.stsx</code>
+                and <code>.sjsx</code>), with their <code>&lt;style&gt;</code> blocks highlighted as
+                CSS.
+              </p>
+              <p>
+                CSV and TSV get rainbow columns. Logs and <code>.txt</code> open as plain text, and
+                QuickEdit picks the language from the file name, so <code>Dockerfile</code>,
+                <code>Makefile</code>, <code>.env</code> and ignore files are recognized too.
+              </p>
+            </div>
+            <div class="panel">
+              <p class="panel-title">Highlighted languages</p>
+              <ul class="chips">
+                <li>JavaScript / JSX</li>
+                <li>TypeScript / TSX</li>
+                <li>Lumiose <small>.stsx .sjsx</small></li>
+                <li>CSS</li>
+                <li>HTML</li>
+                <li>Markdown</li>
+                <li>CSV / TSV</li>
+                <li>JSON / JSONC / JSON Lines</li>
+                <li>YAML</li>
+                <li>TOML</li>
+                <li>Go <small>+ go.mod</small></li>
+                <li>Rust</li>
+                <li>Python</li>
+                <li>Swift</li>
+                <li>GDScript</li>
+                <li>Godot resources and shaders</li>
+                <li>Dockerfile</li>
+                <li>XML <small>plists, SVG, Xcode files</small></li>
+                <li>INI and config files</li>
+                <li>Shell scripts</li>
+                <li>Makefiles</li>
+                <li>SQL</li>
+                <li>.env</li>
+                <li>Ignore files</li>
+                <li>Diffs</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="feature">
+            <div class="feature-copy">
+              <h3>Safe edits, byte for byte</h3>
+              <p>
+                Files are saved exactly as they came in, except what you changed. The encoding and
+                line endings are kept, even mixed ones; the status bar shows them and converts them
+                only when you ask. New lines and pasted text use the file's own line ending, and
+                indentation follows the file and its
+                <code>.editorconfig</code>.
+              </p>
+              <p>
+                Invisible and look-alike characters, like zero-width spaces, bidirectional controls
+                and stray BOMs, are always marked in orange and counted in the status bar. Smart
+                quotes, autocorrect and spell checking are off. Files that can't be decoded exactly
+                open read-only, binary property lists open read-only as XML, and binary files are
+                refused.
+              </p>
+            </div>
+            <div class="panel">
+              <p class="panel-title">What QuickEdit keeps</p>
+              <ul class="tasks">
+                <li>
+                  <strong>Encoding</strong>: UTF-8, UTF-16 or UTF-32 with or without a BOM, Windows
+                  and ISO Latin, Mac Roman, Shift JIS…
+                </li>
+                <li><strong>Line endings</strong>: LF, CRLF or CR, even mixed</li>
+                <li>
+                  <strong>Indentation</strong>, detected per file or set by
+                  <code>.editorconfig</code>
+                </li>
+                <li>
+                  <strong>Trailing whitespace and final newline</strong>, unless
+                  <code>.editorconfig</code> says otherwise
+                </li>
+                <li><strong>Every byte you didn't touch</strong></li>
+              </ul>
+              <div class="statusbar" aria-hidden="true">
+                <span>Ln 1, Col 1</span>
+                <span class="statusbar-end"
+                  ><span>CSV</span><span>Spaces: 4</span><span>UTF-8</span><span>CRLF</span></span
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="feature">
+            <div class="feature-copy">
+              <h3>Markdown and HTML preview</h3>
+              <p>
+                Switch between editor, split and preview with <kbd>⌘1</kbd>, <kbd>⌘2</kbd> and
+                <kbd>⌘3</kbd>; the preview follows your unsaved edits. Markdown renders like GitHub,
+                with tables, task lists and alerts.
+              </p>
+              <p>
+                HTML previews never run scripts. Local CSS and images load, and remote content only
+                when you allow it for that window.
+              </p>
+            </div>
+            <a class="feature-shot" data-lightbox href="assets/preview-light.webp">
+              <picture>
+                <source srcset="assets/preview-dark.webp" media="(prefers-color-scheme: dark)" />
+                <img
+                  src="assets/preview-light.webp"
+                  width="1600"
+                  height="1118"
+                  loading="lazy"
+                  alt="A Markdown release checklist in split mode: the source with highlighted Markdown on the left, and the rendered preview with a task list, a Tip alert, a code block and a table on the right."
+                />
+              </picture>
+            </a>
+          </div>
+
+          <div class="feature">
+            <div class="feature-copy">
+              <h3>CSV and TSV as a table</h3>
+              <p>
+                Switch a CSV or TSV file to Table with <kbd>⌥⌘T</kbd> or from the status bar, and
+                edit it like a spreadsheet: change cells, add or delete rows and columns, and use
+                the first row as headers.
+              </p>
+              <p>
+                Every change rewrites only the cells it touches, so the quoting, the delimiter and
+                the line endings stay as they were, and <kbd>⌘Z</kbd> undoes it.
+              </p>
+            </div>
+            <a class="feature-shot" data-lightbox href="assets/table-light.webp">
+              <picture>
+                <source srcset="assets/table-dark.webp" media="(prefers-color-scheme: dark)" />
+                <img
+                  src="assets/table-light.webp"
+                  width="1600"
+                  height="1118"
+                  loading="lazy"
+                  alt="cities.csv in Table mode: city, country, population and notes columns with four cities, buttons to add and remove rows and columns, a First row is header checkbox, and CRLF in the status bar."
+                />
+              </picture>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section details" aria-labelledby="details-title">
+        <div class="container">
+          <p class="eyebrow"><span aria-hidden="true">//</span> Details</p>
+          <h2 id="details-title">And the small things that add up.</h2>
+          <ul class="detail-grid">
+            <li>
+              <h3>Files as tabs</h3>
+              <p>
+                Every file opens as a native window tab (<kbd>⌘T</kbd> for a new one), in light or
+                dark. Autosave and version history like TextEdit, or explicit <kbd>⌘S</kbd> saving
+                if you prefer.
+              </p>
+            </li>
+            <li>
+              <h3>Line commands</h3>
+              <p>
+                Go to Line (<kbd>⌘L</kbd>), move (<kbd>⌃⌘↑</kbd> <kbd>⌃⌘↓</kbd>), duplicate, delete,
+                join and sort lines, indent and outdent, and toggle comments (<kbd>⌘/</kbd>). Soft
+                wrap on or off.
+              </p>
+            </li>
+            <li>
+              <h3>Code folding</h3>
+              <p>
+                Fold JSON, CSS, YAML, TOML, JS/TS, Lumiose, Go, Rust, Python, Swift, Markdown, HTML
+                and XML from the gutter or with <kbd>⌥⌘←</kbd> and <kbd>⌥⌘→</kbd>. Folding never
+                changes the file.
+              </p>
+            </li>
+            <li>
+              <h3>Voice notes in Markdown</h3>
+              <p>
+                Record from the status bar or with <kbd>⌃⌘R</kbd>. The clip is saved next to the
+                file, linked at the caret, plays in the preview, and can be transcribed on your Mac.
+              </p>
+            </li>
+            <li>
+              <h3>Finder and Quick Look</h3>
+              <p>
+                TypeScript <code>.ts</code> files (which macOS thinks are videos), YAML, TOML, CSS
+                and Lumiose files get a plain-text Quick Look preview, and Finder's icons and
+                preview pane show their first lines.
+              </p>
+            </li>
+            <li>
+              <h3>Your default editor, per type</h3>
+              <p>
+                In Settings › File Types, check the types QuickEdit should open by default and
+                Apply. Unchecking one gives it back to the app that had it before.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="privacy" class="section privacy" aria-labelledby="privacy-title">
+        <div class="container">
+          <p class="eyebrow"><span aria-hidden="true">//</span> Privacy</p>
+          <h2 id="privacy-title">Your files stay on your Mac.</h2>
+          <ul class="privacy-grid">
+            <li>
+              <h3>No tracking</h3>
+              <p>
+                No analytics, no telemetry and no account. Nothing about you or your files is sent
+                anywhere.
+              </p>
+            </li>
+            <li>
+              <h3>No network of its own</h3>
+              <p>
+                QuickEdit doesn't connect to the internet by itself. An HTML preview loads remote
+                content only when you allow it for that window.
+              </p>
+            </li>
+            <li>
+              <h3>Transcribed on device</h3>
+              <p>
+                Voice notes are transcribed with on-device speech recognition; the audio never
+                leaves your Mac.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="get" class="section get" aria-labelledby="get-title">
+        <div class="container get-inner">
+          <div>
+            <p class="eyebrow"><span aria-hidden="true">//</span> Get it</p>
+            <h2 id="get-title">Download QuickEdit.</h2>
+            <p class="section-lead">
+              A disk image for macOS 26 on Apple silicon, from the project's
+              <a href="https://github.com/itsjavi/quickedit/releases">GitHub releases</a>.
+            </p>
+            <div class="actions">
+              <a
+                class="button button-primary"
+                href="https://github.com/itsjavi/quickedit/releases/latest"
+                data-release-download
+                >Download QuickEdit</a
+              >
+            </div>
+            <p class="fineprint release-pending" data-release-pending hidden>
+              No release is out yet. Until the first one, build it from source.
+            </p>
+            <p class="fineprint">
+              Building from source needs Xcode 26: <code>make install</code> builds the release app
+              and copies it to <code>/Applications</code>.
+            </p>
+          </div>
+          <div class="code-block">
+            <button class="copy-button" type="button" data-copy-target="install-commands">
+              Copy
+            </button>
+            <pre><code id="install-commands">git clone https://github.com/itsjavi/quickedit.git
+cd quickedit
+make install</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          <picture>
+            <source srcset="assets/icon-dark.png" media="(prefers-color-scheme: dark)" />
+            <img src="assets/icon.png" width="20" height="20" alt="" />
+          </picture>
+          <span
+            >QuickEdit is open source under the
+            <a href="https://github.com/itsjavi/quickedit/blob/main/LICENSE">MIT License</a>. Made
+            by <a href="https://itsjavi.com/">Javi Aguilar</a>.</span
+          >
+        </p>
+        <ul class="footer-links">
+          <li><a href="https://github.com/itsjavi/quickedit">Source</a></li>
+          <li><a href="https://github.com/itsjavi/quickedit/releases">Releases</a></li>
+          <li><a href="https://github.com/itsjavi/quickedit/issues">Issues</a></li>
+        </ul>
+      </div>
+    </footer>
+
+    <dialog class="lightbox" aria-label="Screenshot">
+      <button class="lightbox-close" type="button" aria-label="Close">
+        <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+          <path
+            d="M3 3l10 10M13 3L3 13"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+      <img src="assets/editor-light.webp" alt="" />
+    </dialog>
+
+    <script>
+      // The download buttons link to the newest release's page; with JavaScript they get its DMG and version from
+      // GitHub's API (which allows other origins), so a release never needs a site deploy. Pre-releases are never
+      // "latest". Before the first release the API answers 404: point people at building from source instead.
+      fetch("https://api.github.com/repos/itsjavi/quickedit/releases/latest", {
+        headers: { Accept: "application/vnd.github+json" },
+      })
+        .then((response) => {
+          if (response.status === 404) {
+            for (const el of document.querySelectorAll("[data-release-pending]")) el.hidden = false;
+          }
+          return response.ok ? response.json() : Promise.reject();
+        })
+        .then((release) => {
+          const version = release.tag_name?.replace(/^v/, "");
+          const dmg = release.assets?.find((asset) => asset.name.endsWith(".dmg"));
+          if (!version || !/^[0-9][0-9A-Za-z.-]*$/.test(version) || !dmg) return;
+          for (const el of document.querySelectorAll("[data-release-version]"))
+            el.textContent = `Version ${version}`;
+          for (const el of document.querySelectorAll("[data-release-download]"))
+            el.href = dmg.browser_download_url;
+        })
+        .catch(() => {});
+
+      // Screenshots open in an overlay instead of navigating away; the links still work without JavaScript.
+      const lightbox = document.querySelector(".lightbox");
+      const lightboxImage = lightbox.querySelector("img");
+      for (const link of document.querySelectorAll("[data-lightbox]")) {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          const image = link.querySelector("img");
+          lightboxImage.src = image.currentSrc || image.src;
+          lightboxImage.alt = image.alt;
+          lightbox.showModal();
+        });
+      }
+      // Any click closes it, like Quick Look; Esc works natively.
+      lightbox.addEventListener("click", () => lightbox.close());
+
+      for (const button of document.querySelectorAll("[data-copy-target]")) {
+        button.addEventListener("click", async () => {
+          const target = document.getElementById(button.dataset.copyTarget);
+          try {
+            await navigator.clipboard.writeText(target.textContent);
+            button.textContent = "Copied";
+          } catch {
+            // Clipboard unavailable: select the commands so ⌘C copies them.
+            getSelection().selectAllChildren(target);
+            button.textContent = "Press ⌘C";
+          }
+          setTimeout(() => (button.textContent = "Copy"), 2000);
+        });
+      }
+    </script>
+  </body>
+</html>
