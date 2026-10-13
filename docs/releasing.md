@@ -43,14 +43,14 @@ The workflow's secrets live in the `release` environment, which only `v*` tags c
 them the build is ad-hoc signed (other Macs need System Settings ▸ Privacy & Security ▸ Open Anyway on first launch)
 and has no feed, and the release notes say so.
 
-| Secret                      | What it is                                                                       |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `DEVELOPER_ID_P12`          | The Developer ID Application certificate and its private key, as a base64 .p12   |
-| `DEVELOPER_ID_P12_PASSWORD` | The password the .p12 was exported with                                          |
-| `APPLE_ID`                  | The Apple Account that notarizes                                                 |
-| `APPLE_APP_PASSWORD`        | An app-specific password for it (account.apple.com ▸ Sign-In and Security)       |
-| `APPLE_TEAM_ID`             | The team that owns the certificate                                               |
-| `SPARKLE_PRIVATE_KEY`       | The exported Sparkle private key                                                 |
+| Secret                      | What it is                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `DEVELOPER_ID_P12`          | The Developer ID Application certificate and its private key, as a base64 .p12 |
+| `DEVELOPER_ID_P12_PASSWORD` | The password the .p12 was exported with                                        |
+| `APPLE_ID`                  | The Apple Account that notarizes                                               |
+| `APPLE_APP_PASSWORD`        | An app-specific password for it (account.apple.com ▸ Sign-In and Security)     |
+| `APPLE_TEAM_ID`             | The team that owns the certificate                                             |
+| `SPARKLE_PRIVATE_KEY`       | The exported Sparkle private key                                               |
 
 ## Building a release locally
 
@@ -63,6 +63,10 @@ signs and notarizes when `DEVELOPER_ID` (from `security find-identity -v -p code
 set; the profile is made once with `xcrun notarytool store-credentials <name> --apple-id … --team-id …`. Otherwise it
 builds ad-hoc and lists what's missing. Check a build with `spctl -a -vv build/release/QuickEdit.app` and
 `xcrun stapler validate build/release/QuickEdit-X.Y.Z.dmg`.
+
+To publish such a build (while the workflow has no secrets), tag without pushing (`make bump V=X.Y.Z`), run
+`make build-notarized` and `make appcast`, push main and the tag, and `gh release create vX.Y.Z` with the DMG, zip,
+`SHA256SUMS` and `build/appcast/appcast.xml`. The workflow still runs for the tag but leaves an existing release alone.
 
 `make build-notarized` does the same with the Keychain's Developer ID identity and the `lamina` profile (the same
 Apple ID and team) (override
