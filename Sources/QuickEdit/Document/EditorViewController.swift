@@ -12,6 +12,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     private var ruler: LineNumberRulerView?
     private var splitView: NSSplitView!
     private var previewHost: NSView?
+    private(set) var tableController: TableEditorViewController?
     let preview = PreviewModel()
     private(set) var colorizer: SyntaxColorizer!
     let lineIndex = LineIndex()
@@ -141,6 +142,26 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         applyMode()
     }
 
+    /// Switches a CSV/TSV window between the text editor and the table grid.
+    func setShowsTable(_ shows: Bool) {
+        guard shows != state.showsTable, !shows || state.isTableAvailable else { return }
+        state.showsTable = shows
+        if shows, tableController == nil {
+            let controller = TableEditorViewController(editor: self)
+            addChild(controller)
+            controller.view.translatesAutoresizingMaskIntoConstraints = true
+            splitView.addArrangedSubview(controller.view)
+            tableController = controller
+        }
+        if shows { tableController?.reload() }
+        scrollView.isHidden = shows
+        tableController?.view.isHidden = !shows
+        splitView.adjustSubviews()
+        if !shows, let window = view.window { window.makeFirstResponder(textView) }
+    }
+
+    @objc func toggleTable(_ sender: Any?) { setShowsTable(!state.showsTable) }
+
     func setAllowsRemoteContent(_ allows: Bool) {
         state.allowsRemoteContent = allows
         preview.allowsRemoteContent = allows
@@ -185,6 +206,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let modes: [Selector: EditorMode] = [#selector(showEditorOnly(_:)): .edit, #selector(showSplit(_:)): .split, #selector(showPreviewOnly(_:)): .preview]
+        if menuItem.action == #selector(toggleTable(_:)) {
+            menuItem.state = state.showsTable ? .on : .off
+            return state.isTableAvailable
+        }
         if menuItem.action == #selector(recordVoiceNote(_:)) {
             menuItem.title = state.voiceRecorder.isRecording ? "Show Voice Recorder" : "Record Voice Note"
             return canRecordVoiceNote
@@ -318,6 +343,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
             textView.indentation = state.indentation
         }
         colorizer.reset(language: language)
+        state.isTableAvailable = ["csv", "tsv"].contains(language.id)
+        if !state.isTableAvailable, state.showsTable { setShowsTable(false) }
+        tableController?.reload()
         updatePreviewKind()
     }
 
@@ -333,6 +361,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         MainActor.assumeIsolated {
             lineIndex.invalidate()
             colorizer.textDidEdit(editedRange: editedRange, changeInLength: delta)
+            if state.showsTable { tableController?.textDidChange() }
             // Not during the storage's edit processing: the ruler may widen, which changes layout.
             DispatchQueue.main.async { [weak self] in
                 MainActor.assumeIsolated {

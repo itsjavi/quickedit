@@ -38,6 +38,9 @@ enum IndentationSource: String {
     var mode = EditorMode.edit
     /// The preview's Remote Content toggle (this window only, off by default).
     var allowsRemoteContent = false
+    /// CSV/TSV files can be edited as a table.
+    var isTableAvailable = false
+    var showsTable = false
     let voiceRecorder = VoiceRecorder()
     var showsVoiceRecorder = false
     /// Link destination of the clip being transcribed (shows the transcription sheet).

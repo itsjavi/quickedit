@@ -121,6 +121,7 @@ enum MainMenu {
         menu.addItem(item("Editor", #selector(EditorViewController.showEditorOnly(_:)), "1"))
         menu.addItem(item("Split Preview", #selector(EditorViewController.showSplit(_:)), "2"))
         menu.addItem(item("Preview", #selector(EditorViewController.showPreviewOnly(_:)), "3"))
+        menu.addItem(item("Table", #selector(EditorViewController.toggleTable(_:)), "t", [.command, .option]))
         menu.addItem(.separator())
         let appearance = NSMenu(title: "Appearance")
         for mode in AppearanceMode.allCases {

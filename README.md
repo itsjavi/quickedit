@@ -29,6 +29,9 @@ A native macOS code viewer and editor for small, quick edits: a modern TextEdit,
 - **Markdown and HTML preview.** Editor, split or preview (⌘1 / ⌘2 / ⌘3), live from unsaved edits. Markdown renders
   like GitHub (tables, task lists, alerts). HTML previews never run scripts; local CSS and images load, remote
   content only when you allow it for that window.
+- **CSV and TSV as a table.** Switch a CSV/TSV file to Table (⌥⌘T or the status bar) to edit it like a
+  spreadsheet: edit cells, add or delete rows and columns, use the first row as headers. Every change rewrites only the
+  cells it touches, so quoting, the delimiter and line endings stay as they were, and ⌘Z undoes it.
 - **Voice notes in Markdown.** Record from the status bar or ⌃⌘R: the clip goes to `<file>.md.assets/` next to the
   file, is linked at the caret, plays in the preview and can be transcribed on this Mac.
 - **Light and dark.** Follow the system or pick Light or Dark (View › Appearance).

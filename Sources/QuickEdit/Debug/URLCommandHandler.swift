@@ -84,6 +84,18 @@ enum DebugHooks {
         case "ui/transcript":
             // Inserts a transcript as the sheet's Insert would (no speech model needed).
             if let source = query["src"] { editor?.insertTranscript(query["text"] ?? "", forSource: source) }
+        case "ui/table":
+            editor?.setShowsTable(query["value"] != "0")
+        case "ui/table-cell":
+            guard let row = Int(query["row"] ?? ""), let column = Int(query["column"] ?? "") else { return }
+            editor?.tableController?.setCell(row: row, column: column, value: query["value"] ?? "")
+        case "ui/table-select":
+            let rows = (query["rows"] ?? "").split(separator: ",").compactMap { Int($0) }
+            editor?.tableController?.selectRows(IndexSet(rows))
+        case "ui/table-command":
+            // addRow:, insertRowAbove:, deleteSelectedRows:, addColumn:, deleteSelectedColumn:, toggleHeader:
+            guard let name = query["name"], let table = editor?.tableController else { return }
+            _ = table.perform(Selector(name), with: nil)
         case "ui/language":
             editor?.setLanguage(id: query["id"].flatMap { $0.isEmpty ? nil : $0 })
         case "debug/tokens":
@@ -212,6 +224,9 @@ enum DebugHooks {
             lines.append("\(prefix).lineEnding: \(state.lineEnding.displayName)\(state.hasMixedLineEndings ? " mixed" : "")")
             lines.append("\(prefix).risky: \(state.riskyCount)")
             lines.append("\(prefix).readOnly: \(state.readOnlyReason ?? "no")")
+            if let table = editor.tableController, state.showsTable {
+                lines.append("\(prefix).table: rows=\(table.rowCount) columns=\(table.columnCount) header=\(table.firstRowIsHeader)")
+            }
             lines.append("\(prefix).voice: recording=\(state.voiceRecorder.isRecording) transcribe=\(state.transcribeSource ?? "-")")
             lines.append("\(prefix).preview: \(state.previewKind.map { "\($0)" } ?? "none") mode=\(state.mode.rawValue) remote=\(state.allowsRemoteContent)")
             lines.append("\(prefix).undo: \(editor.document.undoManager?.undoActionName ?? "")")
