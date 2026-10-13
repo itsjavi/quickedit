@@ -268,7 +268,16 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
 - `ui/open?path=`, `ui/new?text=`, `ui/close`, `ui/save`, `ui/window-size?w=&h=`, `ui/appearance?value=system|light|dark`
 - `ui/type?text=`, `ui/select?location=&length=`, `ui/goto-line?line=`
 - `ui/command?name=` (editor and menu commands by selector name, e.g. `moveLineUp:`, `toggleComment:`)
-- `debug/state?out=/private/tmp/state.txt` writes a `key: value` state dump
+- `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|font-size&value=`
+- `ui/voice-start?seconds=|from=` (recorder with the microphone replaced by a tone or clip), `ui/voice-stop`, `ui/voice-cancel`,
+  `ui/transcript?src=&text=` (inserts a transcript like the sheet's Insert)
+- `ui/indentation?style=tabs|spaces&width=[&convert=1]`, `ui/line-endings?value=lf|crlf|cr`
+- `debug/state?out=/private/tmp/state.txt` writes a `key: value` state dump; `debug/preview?out=` dumps the preview
+  page's text and computed colours; `debug/snapshot?out=` renders the editor in-process (PNG)
+
+The Test build never shows alerts, sheets or error dialogs (a sheet can make its window key and activate the app):
+`Dialogs` records them as `suppressedDialog:` in the state dump. Windows aren't restorable there either. After a hook
+sequence, check `lsappinfo front` didn't change. Window captures don't include WKWebView content; use `debug/preview`.
 
 Capture windows without activating the app: `swift scripts/window-screenshot.swift "QuickEdit Test" /private/tmp/shot`.
 An open sheet blocks quitting (standard AppKit): close sheets before `quit`, or `pkill` the Test build.

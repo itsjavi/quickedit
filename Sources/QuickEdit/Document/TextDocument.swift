@@ -20,7 +20,24 @@ final class TextDocument: NSDocument {
 
     // MARK: Reading
 
+    /// The file being read (NSDocument sets `fileURL` only after reading), for `.editorconfig` lookup.
+    private var readingURL: URL?
+
+    nonisolated override func read(from url: URL, ofType typeName: String) throws {
+        MainActor.assumeIsolated { readingURL = url }
+        defer { MainActor.assumeIsolated { readingURL = nil } }
+        try super.read(from: url, ofType: typeName)
+    }
+
     nonisolated override func read(from data: Data, ofType typeName: String) throws {
+        // Binary property lists are shown as XML, read-only until the user converts them (decision-3).
+        if PropertyListText.isBinaryPropertyList(data) {
+            guard let xml = try? PropertyListText.xmlText(fromBinary: data) else {
+                throw Self.readError("This property list is damaged.", "QuickEdit couldn't read it as a binary property list.")
+            }
+            MainActor.assumeIsolated { load(DecodedText(text: xml, encoding: .utf8, isExact: true), binaryPropertyList: true) }
+            return
+        }
         let decoded: DecodedText
         do {
             decoded = try TextCodec.decode(data)
@@ -30,7 +47,7 @@ final class TextDocument: NSDocument {
             throw Self.readError("QuickEdit can't tell this file's text encoding.", "Try opening it in another app.")
         }
         // Documents aren't read concurrently, so this runs on the main thread.
-        MainActor.assumeIsolated { load(decoded) }
+        MainActor.assumeIsolated { load(decoded, binaryPropertyList: false) }
     }
 
     private nonisolated static func readError(_ description: String, _ suggestion: String) -> NSError {
@@ -40,24 +57,59 @@ final class TextDocument: NSDocument {
         ])
     }
 
-    private func load(_ decoded: DecodedText) {
+    private func load(_ decoded: DecodedText, binaryPropertyList: Bool) {
+        let settings = AppSettings.shared
         state.encoding = decoded.encoding
-        state.readOnlyReason = decoded.isExact ? nil : "This file's text encoding couldn't be read exactly, so editing is off to avoid damaging it."
+        state.isBinaryPropertyList = binaryPropertyList
+        if binaryPropertyList {
+            state.readOnlyReason = "A binary property list, shown as XML. Convert it to XML to edit it; saving then writes XML."
+        } else {
+            state.readOnlyReason = decoded.isExact ? nil : "This file's text encoding couldn't be read exactly, so editing is off to avoid damaging it."
+        }
         let endings = LineEndings.detect(decoded.text)
-        state.lineEnding = endings.dominant
+        let hasLineBreaks = !endings.counts.isEmpty
+        let config = settings.useEditorConfig ? (readingURL ?? fileURL).map { EditorConfig.properties(for: $0) } ?? EditorConfigProperties() : EditorConfigProperties()
+        state.editorConfig = config
+        // Existing line endings are kept as they are; .editorconfig only decides for files without any.
+        state.lineEnding = hasLineBreaks ? endings.dominant : config.endOfLine ?? .lf
         state.hasMixedLineEndings = endings.isMixed
-        if AppSettings.shared.detectIndentation, let detected = IndentationDetector.detect(decoded.text) {
+        if let style = config.indentStyle {
+            let width = config.indentSize ?? config.tabWidth ?? settings.tabWidth
+            state.indentation = Indentation(style: style, width: max(1, width))
+            state.indentationSource = .editorConfig
+        } else if settings.detectIndentation, let detected = IndentationDetector.detect(decoded.text, tabWidth: config.tabWidth ?? settings.tabWidth) {
             state.indentation = detected
             state.indentationSource = .detected
         } else {
-            state.indentation = AppSettings.shared.defaultIndentation
-            state.indentationSource = .settings
+            state.indentation = Indentation(style: settings.indentWithTabs ? .tabs : .spaces, width: config.indentSize ?? settings.tabWidth)
+            state.indentationSource = config.indentSize != nil ? .editorConfig : .settings
         }
         let selection = editor?.textView.selectedRange()
         textStorage.beginEditing()
         textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: decoded.text)
         textStorage.endEditing()
         editor?.documentDidLoad(keeping: selection)
+    }
+
+    /// Makes a binary property list editable; the next save writes it as an XML property list.
+    @objc func convertPropertyListToXML(_ sender: Any?) {
+        guard state.isBinaryPropertyList else { return }
+        state.isBinaryPropertyList = false
+        state.readOnlyReason = nil
+        updateChangeCount(.changeDone)
+        editor?.applySettings()
+    }
+
+    // MARK: Saving
+
+    /// Trimming and final newlines apply to saves the user asks for, never to autosaves while typing.
+    override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType, completionHandler: @escaping (Error?) -> Void) {
+        if saveOperation == .saveOperation || saveOperation == .saveAsOperation {
+            editor?.applySaveTransforms(
+                trimTrailingWhitespace: state.editorConfig.trimTrailingWhitespace ?? AppSettings.shared.trimTrailingWhitespace,
+                insertFinalNewline: state.editorConfig.insertFinalNewline ?? AppSettings.shared.insertFinalNewline)
+        }
+        super.save(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
     }
 
     // MARK: Changes on disk
@@ -79,14 +131,14 @@ final class TextDocument: NSDocument {
             try? revert(toContentsOf: url, ofType: type)
             return
         }
-        guard let window = windowControllers.first?.window else { return }
+        let window = windowControllers.first?.window
         isAskingAboutDiskChange = true
         let alert = NSAlert()
         alert.messageText = "“\(displayName ?? "This file")” changed on disk."
         alert.informativeText = "Another app changed the file while you have unsaved edits here."
         alert.addButton(withTitle: "Keep My Edits")
         alert.addButton(withTitle: "Reload from Disk")
-        alert.beginSheetModal(for: window) { [weak self] response in
+        Dialogs.show(alert, for: window) { [weak self] response in
             guard let self else { return }
             isAskingAboutDiskChange = false
             if response == .alertSecondButtonReturn {
@@ -126,6 +178,18 @@ final class TextDocument: NSDocument {
         return true
     }
 
+    // MARK: Errors
+
+    override func presentError(_ error: Error, modalFor window: NSWindow, delegate: Any?, didPresent didPresentSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        guard Dialogs.shouldPresent(error) else { return }
+        super.presentError(error, modalFor: window, delegate: delegate, didPresent: didPresentSelector, contextInfo: contextInfo)
+    }
+
+    override func presentError(_ error: Error) -> Bool {
+        guard Dialogs.shouldPresent(error) else { return false }
+        return super.presentError(error)
+    }
+
     // MARK: Windows
 
     override func makeWindowControllers() {
@@ -148,3 +212,4 @@ final class TextDocument: NSDocument {
         }
     }
 }
+

@@ -71,6 +71,17 @@ final class EditorTextView: NSTextView {
         }
     }
 
+    /// Pasted line breaks become the document's own, so a paste never mixes line endings into the file.
+    override func paste(_ sender: Any?) {
+        guard isEditable, let pasted = NSPasteboard.general.string(forType: .string),
+              pasted.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\r\n" })
+        else {
+            super.paste(sender)
+            return
+        }
+        insertText(LineEndings.convert(pasted, to: lineEnding), replacementRange: selectedRange())
+    }
+
     // MARK: Line editing helpers
 
     /// The lines touched by `range` as (content range, full range including the line ending) pairs.

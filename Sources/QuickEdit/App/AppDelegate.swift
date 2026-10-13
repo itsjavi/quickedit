@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         for url in urls {
             if url.isFileURL {
                 NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
-                    if let error, !AppVariant.isBackground { NSApp.presentError(error) }
+                    if let error, Dialogs.shouldPresent(error) { NSApp.presentError(error) }
                 }
             } else if url.scheme == AppVariant.urlScheme {
                 URLCommandHandler.handle(url)

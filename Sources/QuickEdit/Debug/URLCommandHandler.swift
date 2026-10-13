@@ -58,8 +58,12 @@ enum DebugHooks {
             editor?.goToLine(Int(query["line"] ?? "") ?? 1, column: Int(query["column"] ?? "") ?? 1)
         case "ui/command":
             // Same responder-chain path as the menu item, starting at the editor.
-            guard let name = query["name"], let textView = editor?.textView else { return }
-            _ = textView.tryToPerform(Selector(name), with: nil)
+            guard let name = query["name"], let editor else { return }
+            let action = Selector(name)
+            // NSApp.sendAction reaches the document after the window chain; a background window isn't key, so walk it here.
+            if !editor.textView.tryToPerform(action, with: nil), editor.document.responds(to: action) {
+                editor.document.perform(action, with: nil)
+            }
         case "ui/mode":
             if let mode = EditorMode(rawValue: query["value"] ?? "") { editor?.setMode(mode) }
         case "ui/remote-content":
@@ -183,6 +187,7 @@ enum DebugHooks {
         var lines: [String] = []
         lines.append("variant: \(AppVariant.name)")
         lines.append("appearance: \(AppSettings.shared.appearance.rawValue)")
+        lines.append("suppressedDialog: \(Dialogs.lastSuppressed ?? "-")")
         lines.append("windows: \(NSApp.windows.filter(\.isVisible).map(\.title))")
         lines.append("tabGroups: \(Set(NSApp.windows.compactMap { $0.tabbedWindows?.count }).sorted())")
         for (index, editor) in editors.enumerated() {

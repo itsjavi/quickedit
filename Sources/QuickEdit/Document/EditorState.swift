@@ -23,8 +23,14 @@ enum IndentationSource: String {
     var lineEnding = LineEnding.lf
     var hasMixedLineEndings = false
     var riskyCount = 0
+    /// Name of the last hidden character the status bar revealed ("ZERO WIDTH SPACE U+200B").
+    var lastRevealedRisky: String?
     /// Set when the file can't be saved back faithfully (lossy decoding, binary property list).
     var readOnlyReason: String?
+    /// A binary property list shown as XML (read-only until converted).
+    var isBinaryPropertyList = false
+    /// What the file's `.editorconfig` files say (empty when there are none or they're turned off).
+    var editorConfig = EditorConfigProperties()
     /// Markdown and HTML files get a preview and Edit / Split / Preview modes.
     var previewKind: PreviewKind?
     var mode = EditorMode.edit

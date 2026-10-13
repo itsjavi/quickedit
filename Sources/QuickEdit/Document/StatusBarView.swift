@@ -15,9 +15,18 @@ struct StatusBarView: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             if state.riskyCount > 0 {
-                Label(state.riskyCount == 1 ? "1 hidden character" : "\(state.riskyCount) hidden characters", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .help("Invisible or look-alike characters (zero-width, bidirectional controls, unusual spaces) are marked in the text")
+                Button {
+                    controller?.revealNextRiskyCharacter(nil)
+                } label: {
+                    Label(state.riskyCount == 1 ? "1 hidden character" : "\(state.riskyCount) hidden characters", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                .help("Invisible or look-alike characters (zero-width, bidirectional controls, unusual spaces) are marked in orange. Click to select the next one."
+                    + (state.lastRevealedRisky.map { "\nSelected: \($0)" } ?? ""))
+            }
+            if state.isBinaryPropertyList {
+                Button("Convert to XML") { controller?.document.convertPropertyListToXML(nil) }
+                    .help("This is a binary property list shown as XML. Converting makes it editable; saving then writes an XML property list.")
             }
             if let reason = state.readOnlyReason {
                 Label("Read Only", systemImage: "lock.fill")
@@ -48,7 +57,7 @@ struct StatusBarView: View {
         .frame(maxWidth: .infinity)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
-        .sheet(isPresented: Binding(get: { state.transcribeSource != nil }, set: { if !$0 { state.transcribeSource = nil } })) {
+        .sheet(isPresented: Binding(get: { state.transcribeSource != nil && !Dialogs.isSuppressed }, set: { if !$0 { state.transcribeSource = nil } })) {
             if let source = state.transcribeSource, let audio = state.transcribeURL {
                 TranscriptionSheet(audioURL: audio) { text in controller?.insertTranscript(text, forSource: source) }
             }

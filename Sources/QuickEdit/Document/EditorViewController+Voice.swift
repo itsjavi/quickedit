@@ -23,7 +23,7 @@ extension EditorViewController {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         } catch {
-            presentError(error)
+            if Dialogs.shouldPresent(error) { presentError(error) }
             return
         }
         let clip = Attachments.uniqueURL(in: folder, fileName: Attachments.timestampedName(prefix: "voice", pathExtension: "m4a"))
@@ -81,13 +81,12 @@ extension EditorViewController {
     }
 
     private func presentSaveFirst() {
-        guard let window = view.window else { return }
         let alert = NSAlert()
         alert.messageText = "Save this file before recording a voice note."
         alert.informativeText = "Voice notes are stored in a folder next to the file, so it needs a name and a place first."
         alert.addButton(withTitle: "Save…")
         alert.addButton(withTitle: "Cancel")
-        alert.beginSheetModal(for: window) { [weak self] response in
+        Dialogs.show(alert, for: view.window) { [weak self] response in
             if response == .alertFirstButtonReturn { self?.document.save(nil) }
         }
     }

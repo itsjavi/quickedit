@@ -207,6 +207,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         textView.indentation = state.indentation
         textView.lineEnding = state.lineEnding
         textView.isEditable = !state.isReadOnly
+        textView.isSelectable = true
         textView.highlightsCurrentLine = settings.highlightCurrentLine
         layoutManager.showsInvisibles = settings.showInvisibles
         applyWrap(settings.wrapLines)
@@ -347,7 +348,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     }
 
     @objc func showGoToLine(_ sender: Any?) {
-        guard let window = view.window else { return }
         let alert = NSAlert()
         alert.messageText = "Go to Line"
         alert.informativeText = "Enter a line number, optionally followed by :column."
@@ -357,7 +357,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         alert.addButton(withTitle: "Go")
         alert.addButton(withTitle: "Cancel")
         alert.window.initialFirstResponder = field
-        alert.beginSheetModal(for: window) { [weak self] response in
+        Dialogs.show(alert, for: view.window) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
             let parts = field.stringValue.split(separator: ":").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
             guard let line = parts.first else { return }
@@ -430,8 +430,30 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         }
     }
 
+    /// Trims trailing whitespace and/or ends the file with a line break, as one undoable change before a save.
+    func applySaveTransforms(trimTrailingWhitespace: Bool, insertFinalNewline: Bool) {
+        guard !state.isReadOnly, trimTrailingWhitespace || insertFinalNewline else { return }
+        var text = textView.string
+        if trimTrailingWhitespace { text = WhitespaceTransforms.trimmingTrailingWhitespace(text) }
+        if insertFinalNewline { text = WhitespaceTransforms.ensuringFinalNewline(text, lineEnding: state.lineEnding) }
+        replaceAllText(with: text, actionName: "Clean Up Whitespace")
+    }
+
+    /// Selects the next invisible or look-alike character after the caret (wrapping around) and scrolls to it.
+    @objc func revealNextRiskyCharacter(_ sender: Any?) {
+        let text = textView.string as NSString
+        let after = NSMaxRange(textView.selectedRange())
+        let found = RiskyCharacters.scan(text, in: NSRange(location: after, length: text.length - after)).first
+            ?? RiskyCharacters.scan(text, in: NSRange(location: 0, length: min(after, text.length))).first
+        guard let found else { return }
+        textView.setSelectedRange(found.range)
+        textView.scrollRangeToVisible(found.range)
+        if !AppVariant.isBackground { textView.showFindIndicator(for: found.range) }
+        state.lastRevealedRisky = found.name
+    }
+
     /// Replaces the whole text as one undoable change, keeping the caret and scroll position close.
-    private func replaceAllText(with text: String, actionName: String) {
+    func replaceAllText(with text: String, actionName: String) {
         guard text != textView.string else { return }
         let selection = textView.selectedRange()
         let visible = scrollView.contentView.bounds.origin
@@ -447,10 +469,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = information
-        if let window = view.window {
-            alert.beginSheetModal(for: window)
-        } else if !AppVariant.isBackground {
-            alert.runModal()
-        }
+        Dialogs.show(alert, for: view.window)
     }
 }

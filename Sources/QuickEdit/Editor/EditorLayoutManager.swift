@@ -1,4 +1,5 @@
 import AppKit
+import QuickEditCore
 
 /// TextKit 1 layout manager for the editor. With `showsInvisibles` it draws spaces as ·, tabs as →, and line endings
 /// by kind (LF ¬, CRLF ↵, CR ←) in a faint colour over the text, without changing the text or its layout.
@@ -18,6 +19,33 @@ nonisolated final class EditorLayoutManager: NSLayoutManager {
     }
 
     private var symbols: [SymbolKey: NSAttributedString] = [:]
+
+    /// Invisible and look-alike characters (zero-width, bidi controls, unusual spaces…) are always marked in
+    /// orange, whatever `showsInvisibles` says: they're how "looks right, behaves wrong" edits happen.
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+        guard let storage = textStorage, glyphsToShow.length > 0 else { return }
+        let characters = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        let risky = RiskyCharacters.scan(storage.string as NSString, in: characters)
+        guard !risky.isEmpty else { return }
+        for item in risky {
+            let glyphs = glyphRange(forCharacterRange: item.range, actualCharacterRange: nil)
+            guard glyphs.length > 0, let container = textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { continue }
+            var rect = boundingRect(forGlyphRange: glyphs, in: container)
+            if rect.width < 4 {
+                // Zero-width characters get a visible bar where they sit.
+                rect.origin.x -= (4 - rect.width) / 2
+                rect.size.width = 4
+            }
+            rect = rect.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: 0, dy: 1)
+            let path = NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2)
+            NSColor.systemOrange.withAlphaComponent(0.35).setFill()
+            path.fill()
+            NSColor.systemOrange.setStroke()
+            path.lineWidth = 1
+            path.stroke()
+        }
+    }
 
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)

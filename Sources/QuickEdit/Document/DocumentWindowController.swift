@@ -13,6 +13,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         window.tabbingIdentifier = Self.tabbingIdentifier
         window.setContentSize(NSSize(width: 860, height: 640))
         window.contentMinSize = NSSize(width: 420, height: 240)
+        // Restored windows come back in front: the background Test build starts with none.
+        window.isRestorable = !AppVariant.isBackground
         super.init(window: window)
         // Files join the frontmost window as tabs, so new windows reuse the last frame instead of cascading
         // off it; the very first one is centred (a window made without a frame starts at the screen's corner).

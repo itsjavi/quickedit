@@ -197,7 +197,7 @@ private final class RecentDocumentsMenuDelegate: NSObject, NSMenuDelegate {
     @objc private func openRecent(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
         NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
-            if let error { NSApp.presentError(error) }
+            if let error, Dialogs.shouldPresent(error) { NSApp.presentError(error) }
         }
     }
 }
