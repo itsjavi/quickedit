@@ -8,18 +8,28 @@ import SwiftTreeSitter
 /// Injections follow tree-sitter's highlighter (`tree-sitter-highlight`): `@injection.content` and
 /// `@injection.language` captures, `#set! injection.language`, `injection.include-children` (otherwise the content
 /// node's children are excluded) and `injection.combined` (grouped per pattern within the queried range).
+///
+/// Lumiose components (`stylesheets` set): the host grammar parses the text with `<style>` contents blanked
+/// (`StyleScan`), each block's CSS is a layer of its own read with `$` references neutralized, and the references
+/// are painted as constants on top.
 final class TreeSitterEngine: HighlightEngine {
     static let maximumInjectionDepth = 4
+    /// Cache variant of the CSS layers of Lumiose `<style>` blocks (read with `$` references neutralized).
+    private static let stylesheetVariant = 1
 
     private let grammar: GrammarConfiguration
+    /// Set for Lumiose components: `<style>` blocks are blanked for the host grammar and parsed as CSS.
+    private let stylesheetGrammar: GrammarConfiguration?
     private let parser = Parser()
     private var tree: MutableTree?
     private var text: NSString = ""
     private var lines = LineIndex()
+    private var styles = StyleScan()
     private let injections = InjectionCache()
 
-    init(grammar: GrammarConfiguration) {
+    init(grammar: GrammarConfiguration, stylesheets: GrammarConfiguration? = nil) {
         self.grammar = grammar
+        self.stylesheetGrammar = stylesheets
         // Only fails for an ABI the runtime doesn't support, which the vendoring script and tests rule out.
         try? parser.setLanguage(grammar.language)
     }
@@ -28,7 +38,27 @@ final class TreeSitterEngine: HighlightEngine {
         self.text = text
         lines = LineIndex(text: text)
         injections.removeAll()
-        tree = parser.parse(tree: MutableTree?.none, readBlock: TextChunks.readBlock(for: text))
+        if stylesheetGrammar != nil {
+            styles = StyleScan.scan(text)
+        }
+        tree = parser.parse(tree: MutableTree?.none, readBlock: rootReadBlock(for: text))
+    }
+
+    /// The host grammar reads the text with stylesheets blanked (same length and line breaks), so CSS braces
+    /// never reach the TSX/JSX parser.
+    private func rootReadBlock(for text: NSString) -> Parser.ReadBlock {
+        guard stylesheetGrammar != nil else { return TextChunks.readBlock(for: text) }
+        let contents = styles.contents
+        return TextChunks.readBlock(for: text) { buffer, location in
+            StyleScan.blank(contents, in: buffer, at: location)
+        }
+    }
+
+    private func sameLengthEdit(over range: NSRange) -> InputEdit {
+        InputEdit(
+            startByte: range.location * 2, oldEndByte: range.upperBound * 2, newEndByte: range.upperBound * 2,
+            startPoint: lines.point(at: range.location), oldEndPoint: lines.point(at: range.upperBound),
+            newEndPoint: lines.point(at: range.upperBound))
     }
 
     func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange] {
@@ -53,11 +83,25 @@ final class TreeSitterEngine: HighlightEngine {
         // Whole edited lines: predicates (`#match? "^[A-Z]"`) can change a token's kind beyond the typed text.
         var changed = [lines.lineRange(covering: NSRange(location: oldRange.location, length: replacementLength), length: newText.length)]
         oldTree.edit(edit)
-        if let newTree = parser.parse(tree: oldTree, readBlock: TextChunks.readBlock(for: newText)) {
+        changed += injections.applyEdit(edit)
+        if stylesheetGrammar != nil {
+            // Opening or closing a <style> block blanks or reveals text away from the edit: report those spans
+            // to tree-sitter as same-length replacements.
+            let oldContents = styles.contents
+            styles = StyleScan.scan(newText)
+            for range in StyleScan.maskChanges(
+                old: oldContents, new: styles.contents, replacing: oldRange, with: replacementLength)
+            {
+                let maskEdit = sameLengthEdit(over: range)
+                oldTree.edit(maskEdit)
+                changed += injections.applyEdit(maskEdit)
+                changed.append(range)
+            }
+        }
+        if let newTree = parser.parse(tree: oldTree, readBlock: rootReadBlock(for: newText)) {
             changed += newTree.changedRanges(from: oldTree).map { $0.bytes.range }
             tree = newTree
         }
-        changed += injections.applyEdit(edit)
         let all = NSRange(location: 0, length: newText.length)
         return normalized(changed.compactMap { $0.clipped(to: all) })
     }
@@ -67,8 +111,50 @@ final class TreeSitterEngine: HighlightEngine {
         let context = SwiftTreeSitter.Predicate.Context(textProvider: { [text] range, _ in Self.substring(of: text, range) })
         var collector = CaptureCollector(range: range)
         collect(tree: tree, grammar: grammar, depth: 0, layerRanges: nil, range: range, context: context, into: &collector)
+        if let css = stylesheetGrammar {
+            for block in styles.blocks {
+                guard let subrange = block.content.clipped(to: range), let layer = stylesheetLayer(block, css) else {
+                    continue
+                }
+                collect(
+                    tree: layer.tree, grammar: css, depth: 1, layerRanges: layer.ranges, range: subrange,
+                    context: context, into: &collector)
+            }
+            StyleScan.forEach(styles.references, intersecting: range) { reference in
+                collector.add(reference, code: Self.referenceCode, pattern: .max, capture: 0, depth: .max)
+            }
+        }
         injections.finishPass()
         return collector.resolve()
+    }
+
+    func foldRanges() -> [FoldRegion] {
+        guard let tree else { return [] }
+        let builder = FoldBuilder(text: text, lines: lines)
+        var regions: [FoldRegion] = []
+        builder.collect(tree: tree, rules: grammar.foldRules, into: &regions)
+        if let css = stylesheetGrammar {
+            for block in styles.blocks where block.content.length > 0 {
+                guard let layer = stylesheetLayer(block, css) else { continue }
+                builder.collect(tree: layer.tree, rules: css.foldRules, into: &regions)
+            }
+            injections.finishPass()
+        }
+        return regions
+    }
+
+    /// `$name.path` references in Lumiose stylesheets are build-time constants.
+    private static let referenceCode = TokenKind.paletteIndices[.constant]!
+
+    private func stylesheetLayer(_ block: StyleBlock, _ css: GrammarConfiguration) -> InjectionCache.Layer? {
+        let content = TSRange(
+            points: lines.point(at: block.content.location)..<lines.point(at: block.content.upperBound),
+            bytes: UInt32(block.content.location * 2)..<UInt32(block.content.upperBound * 2))
+        let references = styles.references
+        return injections.layer(
+            grammar: css, ranges: [content], host: UInt32(block.range.location * 2)..<UInt32(block.range.upperBound * 2),
+            text: text, variant: Self.stylesheetVariant,
+            transform: { buffer, location in StyleScan.neutralize(references, in: buffer, at: location) })
     }
 
     // MARK: - Queries
@@ -235,13 +321,18 @@ final class TreeSitterEngine: HighlightEngine {
 final class InjectionCache {
     final class Layer {
         let grammar: GrammarConfiguration
+        let variant: Int
         var ranges: [TSRange]
         var host: Range<UInt32>
         var tree: MutableTree
         var lastUse: Int
 
-        init(grammar: GrammarConfiguration, ranges: [TSRange], host: Range<UInt32>, tree: MutableTree, lastUse: Int) {
+        init(
+            grammar: GrammarConfiguration, variant: Int, ranges: [TSRange], host: Range<UInt32>, tree: MutableTree,
+            lastUse: Int
+        ) {
             self.grammar = grammar
+            self.variant = variant
             self.ranges = ranges
             self.host = host
             self.tree = tree
@@ -255,12 +346,14 @@ final class InjectionCache {
         }
 
         var key: Key {
-            Key(grammar: grammar.name, ranges: ranges.map(\.bytes))
+            Key(grammar: grammar.name, variant: variant, ranges: ranges.map(\.bytes))
         }
     }
 
     struct Key: Hashable {
         let grammar: String
+        /// Layers of one grammar read through different transforms are never mixed up or reused for each other.
+        let variant: Int
         let ranges: [Range<UInt32>]
     }
 
@@ -274,8 +367,11 @@ final class InjectionCache {
 
     var count: Int { layers.count }
 
-    func layer(grammar: GrammarConfiguration, ranges: [TSRange], host: Range<UInt32>, text: NSString) -> Layer? {
-        let key = Key(grammar: grammar.name, ranges: ranges.map(\.bytes))
+    func layer(
+        grammar: GrammarConfiguration, ranges: [TSRange], host: Range<UInt32>, text: NSString, variant: Int = 0,
+        transform: TextChunks.Transform? = nil
+    ) -> Layer? {
+        let key = Key(grammar: grammar.name, variant: variant, ranges: ranges.map(\.bytes))
         if let layer = layers[key] {
             layer.lastUse = generation
             layer.host = host
@@ -283,13 +379,16 @@ final class InjectionCache {
         }
         let span = ranges[0].bytes.lowerBound..<ranges[ranges.count - 1].bytes.upperBound
         var oldTree: MutableTree?
-        if let index = reusable.firstIndex(where: { $0.grammar === grammar && $0.span.overlaps(span) }) {
+        if let index = reusable.firstIndex(where: {
+            $0.grammar === grammar && $0.variant == variant && $0.span.overlaps(span)
+        }) {
             oldTree = reusable.remove(at: index).tree
         }
         guard (try? parser.setLanguage(grammar.language)) != nil else { return nil }
         parser.includedRanges = ranges
-        guard let tree = parser.parse(tree: oldTree, readBlock: TextChunks.readBlock(for: text)) else { return nil }
-        let layer = Layer(grammar: grammar, ranges: ranges, host: host, tree: tree, lastUse: generation)
+        guard let tree = parser.parse(tree: oldTree, readBlock: TextChunks.readBlock(for: text, transform: transform))
+        else { return nil }
+        let layer = Layer(grammar: grammar, variant: variant, ranges: ranges, host: host, tree: tree, lastUse: generation)
         layers[key] = layer
         return layer
     }

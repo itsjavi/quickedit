@@ -86,8 +86,12 @@ enum TextChunks {
         }
     }
 
+    /// Rewrites a chunk read at a UTF-16 location in place (e.g. blanking embedded stylesheets) before
+    /// tree-sitter sees it. Must keep every line break so rows and columns stay put.
+    typealias Transform = (UnsafeMutableBufferPointer<unichar>, Int) -> Void
+
     /// The tree-sitter read callback: UTF-16LE data starting at a byte offset.
-    static func readBlock(for text: NSString) -> Parser.ReadBlock {
+    static func readBlock(for text: NSString, transform: Transform? = nil) -> Parser.ReadBlock {
         let length = text.length
         return { byteOffset, _ in
             let location = byteOffset / 2
@@ -99,9 +103,9 @@ enum TextChunks {
             }
             var data = Data(count: count * 2)
             data.withUnsafeMutableBytes { raw in
-                text.getCharacters(
-                    raw.baseAddress!.assumingMemoryBound(to: unichar.self),
-                    range: NSRange(location: location, length: count))
+                let units = raw.bindMemory(to: unichar.self)
+                text.getCharacters(units.baseAddress!, range: NSRange(location: location, length: count))
+                transform?(units, location)
             }
             return data
         }

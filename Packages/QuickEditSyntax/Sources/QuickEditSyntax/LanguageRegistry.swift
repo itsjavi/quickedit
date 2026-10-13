@@ -37,6 +37,20 @@ public enum LanguageRegistry {
             highlighting: .grammar("tsx"), aliases: ["tsx"]
         ),
         Language(
+            id: "stsx", displayName: "Lumiose TSX",
+            extensions: ["stsx"], fileNames: [], fileNamePatterns: [], shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            highlighting: .styled("tsx"), aliases: ["stsx"]
+        ),
+        Language(
+            id: "sjsx", displayName: "Lumiose JSX",
+            extensions: ["sjsx"], fileNames: [], fileNamePatterns: [], shebangInterpreters: [],
+            lineComment: "//", blockComment: cStyle, prefersTabs: false,
+            // The TSX grammar: the JavaScript grammar rejects reserved words such as `class` and `for` as JSX
+            // attribute names, which Lumiose components use.
+            highlighting: .styled("tsx"), aliases: ["sjsx"]
+        ),
+        Language(
             id: "css", displayName: "CSS",
             extensions: ["css"], fileNames: [], fileNamePatterns: [], shebangInterpreters: [],
             lineComment: nil, blockComment: cStyle, prefersTabs: false,

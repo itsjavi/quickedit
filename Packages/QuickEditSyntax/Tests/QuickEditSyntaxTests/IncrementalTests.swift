@@ -117,6 +117,17 @@ struct IncrementalTests {
                 """,
             snippets: ["x", " ", "\n", "  ", "- ", ": ", "\"", "#", "[", "]", "{", "}", "|\n"]),
         Document(
+            language: "stsx",
+            source: LumioseTests.postCard + LumioseTests.nested,
+            snippets: [
+                "x", " ", "\n", "<style>", "</style>", "<style global>", "<style", "</", "$theme.a", "$", ".", "{", "}",
+                "`", "'", "\"", "//", "/*", "*/", "${", "<div>", "</div>",
+            ]),
+        Document(
+            language: "sjsx",
+            source: LumioseTests.counter + LumioseTests.layout.replacingOccurrences(of: "import type { LayoutProps } from \"lumiose\";\n", with: ""),
+            snippets: ["x", " ", "\n", "<style>", "</style>", "$accent", "{", "}", "'", "\"", "/*", "*/", "<p>"]),
+        Document(
             language: "csv",
             source: "a,b,c\n1,\"x, y\",3\n4,5,6\n",
             snippets: ["x", ",", "\"", "\n", "\"\""]),
@@ -174,6 +185,10 @@ struct IncrementalTests {
             let window = NSRange(location: windowStart, length: min(120, newText.length - windowStart))
             if windowed.tokens(in: window) != fresh.tokens(in: window) {
                 Issue.record("\(document.language) step \(step): windowed tokens differ in \(window) after replacing \(range) with \(insertion.debugDescription)\n\(newText)")
+                return
+            }
+            if highlighter.foldRanges() != fresh.foldRanges() {
+                Issue.record("\(document.language) step \(step): incremental folds differ after replacing \(range) with \(insertion.debugDescription)\n\(newText)")
                 return
             }
             if incremental != expected {

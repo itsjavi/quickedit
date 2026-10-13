@@ -15,6 +15,9 @@ struct GrammarTests {
         #expect(highlights.patternCount > 0)
         // At least one capture maps to a token kind.
         #expect(grammar.highlightCodes.contains { $0 != nil && $0 != CaptureCollector.clear })
+        let ruleTypes = Set((FoldRules.rules[name] ?? []).map(\.type))
+        let foundTypes = Set(grammar.foldRules.values.flatMap { $0.map(\.type) })
+        #expect(ruleTypes == foundTypes, "\(name) fold rules name missing node types: \(ruleTypes.subtracting(foundTypes))")
         if let injections = grammar.injections {
             #expect(grammar.injectionContentCapture != nil, "\(name) injections lack @injection.content")
             #expect(injections.patternCount == grammar.injectionPatterns.count)

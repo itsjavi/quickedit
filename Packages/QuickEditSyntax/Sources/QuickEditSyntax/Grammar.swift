@@ -35,6 +35,8 @@ final class GrammarConfiguration: Sendable {
     let injectionLanguageCapture: Int?
     /// Injection settings by pattern index.
     let injectionPatterns: [InjectionPattern]
+    /// Fold rules by node symbol (see `FoldRules`).
+    let foldRules: [Int: [FoldRules.Rule]]
 
     init(name: String) throws(GrammarError) {
         guard let pointer = VendoredGrammars.language(named: name) else { throw .unknownGrammar(name) }
@@ -70,6 +72,8 @@ final class GrammarConfiguration: Sendable {
             injectionLanguageCapture = nil
             injectionPatterns = []
         }
+
+        foldRules = FoldRules.symbols(for: name, in: language)
     }
 
     private static func compile(
@@ -154,9 +158,11 @@ enum GrammarStore {
         if VendoredGrammars.names.contains(key) {
             return key
         }
-        if let language = LanguageRegistry.language(forFenceInfo: key), case .grammar(let grammar) = language.highlighting {
-            return grammar
+        switch LanguageRegistry.language(forFenceInfo: key)?.highlighting {
+        case .grammar(let grammar): return grammar
+        // Fenced Lumiose code gets its host grammar; its <style> blocks aren't split out there.
+        case .styled(let host): return host
+        default: return nil
         }
-        return nil
     }
 }

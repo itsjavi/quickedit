@@ -54,4 +54,6 @@ enum Highlighting: Sendable, Hashable {
     case grammar(String)
     /// Rainbow columns split by a delimiter (UTF-16 code unit), with double-quoted fields.
     case delimited(UInt16)
+    /// A Lumiose component: the host grammar ("tsx", "javascript") with `<style>` blocks highlighted as CSS.
+    case styled(String)
 }
