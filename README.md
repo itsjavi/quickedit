@@ -19,6 +19,9 @@ A native macOS code viewer and editor for small, quick edits: a modern TextEdit,
   open as plain text.
 - **Lines.** Line numbers, current-line highlight, Go to Line (⌘L), move lines (⌃⌘↑/↓), duplicate (⇧⌘D), delete
   (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off.
+- **Code folding** for JSON, CSS, YAML, TOML, JS/TS/TSX, Lumiose, Go, Rust, Python, Swift, Markdown, HTML and XML:
+  click the arrows in the line-number gutter or use View › Folding (⌥⌘← / ⌥⌘→, all with ⇧). Folding never changes
+  the file; editing inside a fold, finding text in it or going to one of its lines opens it.
 - **Safe edits.** Files are saved byte for byte as they came in, except what you changed:
   - the encoding (UTF-8/16/32 with or without BOM, Windows/ISO Latin, Mac Roman, Shift JIS, …) and line endings
     (LF, CRLF, CR, even mixed) are kept; the status bar shows them and converts them only when you ask;

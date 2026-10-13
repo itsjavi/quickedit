@@ -116,8 +116,7 @@ final class SyntaxColorizer {
 
     /// Foldable regions as the character ranges they hide (empty for languages without folding).
     func foldRegions() -> [NSRange] {
-        // TODO(TASK-19): highlighter?.foldRanges().map(\.hidden) once the syntax package has the API.
-        []
+        highlighter?.foldRanges().map(\.hidden) ?? []
     }
 
     /// Tokens of a range (Test-build hooks).
