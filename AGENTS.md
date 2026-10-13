@@ -225,7 +225,7 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `Sources/QuickEdit/Editor`                      | Text view, line number ruler, invisibles, line commands, highlighting glue   |
 | `Sources/QuickEdit/Preview`, `Voice`            | Markdown/HTML preview, voice recorder, on-device transcription               |
 | `Sources/QuickEdit/Debug`                       | URL scheme handler; DEBUG-only test hooks                                    |
-| `Sources/QuickEditQuickLook`                    | Quick Look preview extension (`.ts` and other text as plain text)            |
+| `Sources/QuickEditQuickLook`                    | Quick Look extension: text `.ts` as plain text, video back to the system     |
 | `Packages/QuickEditSyntax`                      | Local package: language registry, vendored tree-sitter grammars, highlighter |
 | `Resources/`                                    | Info.plist, privacy manifest, `AppIcon.icon`                                 |
 | `scripts/`                                      | `build-app.sh`, `make-icon.swift`, `window-screenshot.swift`                 |

@@ -11,8 +11,11 @@ case "$VARIANT" in
   test)    CONFIG=debug;   NAME="QuickEdit Test"; BUNDLE_ID="com.itsjavi.quickedit.test"; SCHEME="quickedit-test" ;;
   *) echo "unknown variant: $VARIANT" >&2; exit 64 ;;
 esac
+# The Quick Look extension registers a system-wide preview provider: only the release build embeds it, unless QUICKLOOK=1.
+if [[ -z "${QUICKLOOK:-}" ]]; then QUICKLOOK=$([[ "$VARIANT" == "release" ]] && echo 1 || echo 0); fi
 
 swift build -c "$CONFIG" --product QuickEdit
+if [[ "$QUICKLOOK" == "1" ]]; then swift build -c "$CONFIG" --product QuickEditQuickLook; fi
 BIN="$(swift build -c "$CONFIG" --show-bin-path)"
 APP="build/$NAME.app"
 PLIST="$APP/Contents/Info.plist"
@@ -50,7 +53,27 @@ if [[ -d Resources/AppIcon.icon ]]; then
   rm -rf "$ICON_DIR"
 fi
 
+# Quick Look extension (decision-5), signed before the app that seals it.
+APPEX="$APP/Contents/PlugIns/QuickEditQuickLook.appex"
+if [[ "$QUICKLOOK" == "1" ]]; then
+  mkdir -p "$APPEX/Contents/MacOS"
+  cp "$BIN/QuickEditQuickLook" "$APPEX/Contents/MacOS/QuickEditQuickLook"
+  cp Resources/QuickLook/Info.plist "$APPEX/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.quicklook" "$APPEX/Contents/Info.plist"
+  for key in CFBundleShortVersionString CFBundleVersion; do
+    /usr/libexec/PlistBuddy -c "Set :$key $(/usr/libexec/PlistBuddy -c "Print :$key" "$PLIST")" "$APPEX/Contents/Info.plist"
+  done
+fi
+
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+if [[ "$QUICKLOOK" == "1" ]]; then
+  QL_ENTITLEMENTS=Resources/QuickLook/QuickEditQuickLook.entitlements
+  if [[ "$SIGN_IDENTITY" == "-" ]]; then
+    codesign --force --sign - --entitlements "$QL_ENTITLEMENTS" "$APPEX"
+  else
+    codesign --force --options runtime --timestamp --entitlements "$QL_ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APPEX"
+  fi
+fi
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --sign - "$APP"
 else
