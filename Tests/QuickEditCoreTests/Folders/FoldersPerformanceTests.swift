@@ -8,7 +8,8 @@ import Testing
 @Suite(.serialized) struct FoldersPerformanceTests {
     #if DEBUG
     static let slack = 10.0
-    static let matchBudget = Duration.seconds(1)
+    // A sanity bound only: shared CI runners took 1.13 s for the worst query unoptimized.
+    static let matchBudget = Duration.seconds(5)
     #else
     static let slack = 1.0
     static let matchBudget = Duration.milliseconds(16)
