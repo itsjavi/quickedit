@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # Assembles QuickEdit.app from the SwiftPM build.
 # Usage: scripts/build-app.sh [release|dev|test]
+#   SIGN_IDENTITY="Developer ID Application: …"   # sign with a real identity: hardened runtime + secure timestamp
+#                                                 # (default: ad-hoc; scripts/release.sh sets it)
+#   VERSION=1.2.3 BUILD=456                       # override ./VERSION and the commit-count build number
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# The version lives in ./VERSION; the build number counts commits, so it only ever grows.
+VERSION="${VERSION:-$(tr -d '[:space:]' < VERSION)}"
+BUILD="${BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 
 VARIANT="${1:-release}"
 case "$VARIANT" in
@@ -31,7 +38,8 @@ pb "Set :AppVariant $VARIANT"
 pb "Set :AppURLScheme $SCHEME"
 pb "Set :CFBundleURLTypes:0:CFBundleURLName $BUNDLE_ID"
 pb "Set :CFBundleURLTypes:0:CFBundleURLSchemes:0 $SCHEME"
-if [[ -n "${BUILD_NUMBER:-}" ]]; then pb "Set :CFBundleVersion $BUILD_NUMBER"; fi
+pb "Set :CFBundleShortVersionString $VERSION"
+pb "Set :CFBundleVersion $BUILD"
 if [[ "$VARIANT" == "test" ]]; then
   # Background agent build: no Dock icon, never steals focus, no App Nap.
   pb "Add :LSUIElement bool true"

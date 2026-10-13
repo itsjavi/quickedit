@@ -211,6 +211,9 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `make dev` / `make run`           | Debug `build/QuickEdit Dev.app` (own bundle id and defaults)                |
 | `make test-app` / `make run-test` | Background agent build `build/QuickEdit Test.app`                           |
 | `make install`                    | Quits the installed copy and installs the release build to /Applications    |
+| `make release`                    | App, zip, DMG and SHA256SUMS in `build/release` (ad-hoc without credentials) |
+| `make build-notarized`            | Same, signed with the Keychain's Developer ID and notarized + stapled        |
+| `make install-notarized`          | Installs the notarized build to /Applications                               |
 | `make icon`                       | Redraws `Resources/AppIcon.icon` from `scripts/make-icon.swift`             |
 | `make grammars`                   | Re-vendors the tree-sitter grammars pinned in the syntax package lock file  |
 
@@ -228,7 +231,15 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `Sources/QuickEditQuickLook`                    | Quick Look preview extension (`.ts` and other text as plain text)            |
 | `Packages/QuickEditSyntax`                      | Local package: language registry, vendored tree-sitter grammars, highlighter |
 | `Resources/`                                    | Info.plist, privacy manifest, `AppIcon.icon`                                 |
-| `scripts/`                                      | `build-app.sh`, `make-icon.swift`, `window-screenshot.swift`                 |
+| `scripts/`                                      | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`   |
+| `VERSION`                                       | The marketing version; the build number is the commit count                  |
+
+### Releases
+
+`make build-notarized` signs with the Keychain's "Developer ID Application" identity (hardened runtime, secure
+timestamp, `Resources/QuickEdit.entitlements`) and notarizes with the notarytool profile `NOTARY_PROFILE` (default
+`lamina`, the profile Lamina uses for the same team). Notarization uploads the build to Apple: run it only when the
+user asks for a release or a notarized build. Bump `VERSION` for each release.
 
 ### Public docs
 
