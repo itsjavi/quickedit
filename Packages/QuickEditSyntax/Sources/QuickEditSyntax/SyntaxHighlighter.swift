@@ -13,6 +13,8 @@ public final class SyntaxHighlighter {
     /// changes there, and a repeated request for the same range is answered from here.
     private var recent: [(range: NSRange, tokens: [SyntaxToken])] = []
     private static let recentLimit = 2
+    /// `foldRanges()` until the next edit.
+    private var folds: [FoldRegion]?
     private static let recentMaximumLength = 64 * 1024
 
     public init(language: Language) {
@@ -28,12 +30,19 @@ public final class SyntaxHighlighter {
             } else {
                 engine = PlainTextEngine()
             }
+        case .styled(let host):
+            if let grammar = GrammarStore.configuration(named: host), let css = GrammarStore.configuration(named: "css") {
+                engine = TreeSitterEngine(grammar: grammar, stylesheets: css)
+            } else {
+                engine = PlainTextEngine()
+            }
         }
     }
 
     /// Replaces the whole text and parses it from scratch.
     public func setText(_ text: NSString) {
         recent.removeAll()
+        folds = nil
         engine.setText(text)
     }
 
@@ -44,6 +53,7 @@ public final class SyntaxHighlighter {
     /// tree-sitter's changed ranges miss.
     @discardableResult
     public func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange] {
+        folds = nil
         var changed = engine.applyEdit(replacing: oldRange, with: replacementLength, in: newText)
         let inserted = NSRange(location: oldRange.location, length: replacementLength)
         if !engine.isPlainText {
@@ -78,11 +88,28 @@ public final class SyntaxHighlighter {
         return tokens
     }
 
+    /// Foldable regions of the current text, sorted by location (outer before inner), possibly nested. Computed
+    /// from the syntax tree (JSON, CSS, YAML, TOML, JavaScript/TypeScript/TSX and Lumiose, Go, Rust, Python,
+    /// Swift, Markdown, HTML, XML) and cached until the next edit; empty for other languages.
+    public func foldRanges() -> [FoldRegion] {
+        if let folds { return folds }
+        let computed = FoldBuilder.normalized(engine.foldRanges())
+        folds = computed
+        return computed
+    }
+
     /// Compiles the queries of `language`'s grammar ahead of time so the first `SyntaxHighlighter` doesn't pay
     /// for it. Thread-safe; call it from a background task.
     public static func prepare(_ language: Language) {
-        guard case .grammar(let name) = language.highlighting else { return }
-        _ = GrammarStore.configuration(named: name)
+        switch language.highlighting {
+        case .grammar(let name):
+            _ = GrammarStore.configuration(named: name)
+        case .styled(let host):
+            _ = GrammarStore.configuration(named: host)
+            _ = GrammarStore.configuration(named: "css")
+        case .none, .delimited:
+            break
+        }
     }
 
     // MARK: - Recent ranges
@@ -166,6 +193,7 @@ protocol HighlightEngine: AnyObject {
     func setText(_ text: NSString)
     func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange]
     func tokens(in range: NSRange) -> [SyntaxToken]
+    func foldRanges() -> [FoldRegion]
 }
 
 final class PlainTextEngine: HighlightEngine {
@@ -208,4 +236,5 @@ func normalized(_ ranges: [NSRange]) -> [NSRange] {
 
 extension HighlightEngine {
     var isPlainText: Bool { false }
+    func foldRanges() -> [FoldRegion] { [] }
 }

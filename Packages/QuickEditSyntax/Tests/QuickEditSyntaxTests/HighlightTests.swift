@@ -38,6 +38,7 @@ struct HighlightTests {
                 class Foo extends Bar {}
                 console.log(greet("x"), this, null, /ab+c/g);
                 const el = <div className="x">{answer}</div>;
+                function Component() {}
                 """,
             expectations: [
                 .init("// comment", .comment), .init("import", .keyword), .init("\"fs\"", .string),
@@ -46,7 +47,7 @@ struct HighlightTests {
                 .init("${", .stringSpecial), .init("Foo", .type), .init("console", .variableBuiltin),
                 .init("log", .function), .init("this", .variableBuiltin), .init("null", .constant),
                 .init("/ab+c/g", .stringSpecial), .init("div", .tag), .init("className", .attribute),
-                .init("=", after: "answer ", .operator),
+                .init("=", after: "answer ", .operator), .init("Component", .function),
             ]),
         Fixture(
             language: "typescript",

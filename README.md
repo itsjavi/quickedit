@@ -12,10 +12,11 @@ A native macOS code viewer and editor for small, quick edits: a modern TextEdit,
 
 - **Files as tabs.** Every file opens as a native window tab (⌘T for a new one). Autosave and version history like
   TextEdit, or explicit ⌘S saving if you prefer (Settings).
-- **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, CSS, HTML, Markdown, CSV/TSV (rainbow
-  columns), JSON/JSONC/JSON Lines, YAML, TOML, Go (+ `go.mod`), Rust, Python, Swift, GDScript and Godot resources and
-  shaders, Dockerfile, XML (plists, SVG, Xcode files), INI and config files, shell scripts, Makefiles, SQL, `.env`,
-  ignore files and diffs. Logs and `.txt` open as plain text.
+- **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, Lumiose components (`.stsx`/`.sjsx`,
+  with their `<style>` blocks as CSS), CSS, HTML, Markdown, CSV/TSV (rainbow columns), JSON/JSONC/JSON Lines, YAML,
+  TOML, Go (+ `go.mod`), Rust, Python, Swift, GDScript and Godot resources and shaders, Dockerfile, XML (plists, SVG,
+  Xcode files), INI and config files, shell scripts, Makefiles, SQL, `.env`, ignore files and diffs. Logs and `.txt`
+  open as plain text.
 - **Lines.** Line numbers, current-line highlight, Go to Line (⌘L), move lines (⌃⌘↑/↓), duplicate (⇧⌘D), delete
   (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off.
 - **Safe edits.** Files are saved byte for byte as they came in, except what you changed:
