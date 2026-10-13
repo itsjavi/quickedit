@@ -1,0 +1,136 @@
+import SwiftUI
+
+/// The bar under the editor: caret position and warnings on the left; language, indentation, encoding and line
+/// endings on the right, each a menu that changes it for this file.
+struct StatusBarView: View {
+    static let height: CGFloat = 24
+
+    let state: EditorState
+    weak var controller: EditorViewController?
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Text(position)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            if state.riskyCount > 0 {
+                Label(state.riskyCount == 1 ? "1 hidden character" : "\(state.riskyCount) hidden characters", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("Invisible or look-alike characters (zero-width, bidirectional controls, unusual spaces) are marked in the text")
+            }
+            if let reason = state.readOnlyReason {
+                Label("Read Only", systemImage: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .help(reason)
+            }
+            Spacer(minLength: 8)
+            indentationMenu
+            encodingMenu
+            lineEndingMenu
+        }
+        .font(.system(size: 11))
+        .labelStyle(.titleAndIcon)
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+        .menuIndicator(.hidden)
+        .padding(.horizontal, 10)
+        .frame(height: Self.height)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    private var position: String {
+        var text = "Ln \(state.line), Col \(state.column)"
+        if state.selectionLength > 0 { text += " (\(state.selectionLength) selected)" }
+        return text
+    }
+
+    private var indentationMenu: some View {
+        Menu {
+            Picker("Indent Using", selection: Binding(
+                get: { state.indentation.style },
+                set: { style in controller?.setIndentation(Indentation(style: style, width: state.indentation.width)) }
+            )) {
+                Text("Spaces").tag(IndentStyle.spaces)
+                Text("Tabs").tag(IndentStyle.tabs)
+            }
+            .pickerStyle(.inline)
+            Picker(state.indentation.style == .tabs ? "Tab Width" : "Indent Width", selection: Binding(
+                get: { state.indentation.width },
+                set: { width in controller?.setIndentation(Indentation(style: state.indentation.style, width: width)) }
+            )) {
+                ForEach([2, 3, 4, 8], id: \.self) { Text("\($0)").tag($0) }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button("Convert Indentation to Spaces") {
+                controller?.convertIndentation(to: Indentation(style: .spaces, width: state.indentation.width))
+            }
+            Button("Convert Indentation to Tabs") {
+                controller?.convertIndentation(to: Indentation(style: .tabs, width: state.indentation.width))
+            }
+            Button("Detect from File") { controller?.detectIndentation() }
+            Divider()
+            Text("Source: \(state.indentationSource.rawValue)")
+        } label: {
+            Text(state.indentation.style == .tabs ? "Tab Size: \(state.indentation.width)" : "Spaces: \(state.indentation.width)")
+        }
+        .fixedSize()
+        .help("Indentation for this file")
+    }
+
+    private var encodingMenu: some View {
+        Menu {
+            Section("Save with Encoding") {
+                ForEach(TextEncoding.common, id: \.self) { encoding in
+                    Toggle(encoding.displayName, isOn: Binding(
+                        get: { state.encoding == encoding },
+                        set: { _ in controller?.setSaveEncoding(encoding) }
+                    ))
+                }
+            }
+            Menu("Reopen with Encoding") {
+                ForEach(TextEncoding.common, id: \.self) { encoding in
+                    Button(encoding.displayName) { controller?.reopen(with: encoding) }
+                }
+            }
+        } label: {
+            Text(state.encoding.displayName)
+        }
+        .fixedSize()
+        .help("Text encoding")
+    }
+
+    private var lineEndingMenu: some View {
+        Menu {
+            Section("Convert Line Endings To") {
+                ForEach(LineEnding.allCases, id: \.self) { ending in
+                    Toggle(ending.menuTitle, isOn: Binding(
+                        get: { state.lineEnding == ending && !state.hasMixedLineEndings },
+                        set: { _ in controller?.convertLineEndings(to: ending) }
+                    ))
+                }
+            }
+        } label: {
+            if state.hasMixedLineEndings {
+                Label("Mixed (\(state.lineEnding.displayName))", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            } else {
+                Text(state.lineEnding.displayName)
+            }
+        }
+        .fixedSize()
+        .help(state.hasMixedLineEndings ? "This file mixes line endings; new lines use \(state.lineEnding.displayName)" : "Line endings")
+    }
+}
+
+extension LineEnding {
+    var menuTitle: String {
+        switch self {
+        case .lf: "LF (macOS, Linux)"
+        case .crlf: "CRLF (Windows)"
+        case .cr: "CR (classic Mac)"
+        }
+    }
+}
