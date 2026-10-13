@@ -202,42 +202,42 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 
 ### Commands
 
-| Command                           | What it does                                                                |
-| --------------------------------- | --------------------------------------------------------------------------- |
-| `swift build` / `make build`      | Debug build of all targets                                                  |
-| `swift test` / `make test`        | Core unit tests (Swift Testing)                                             |
-| `make test-syntax`                | `Packages/QuickEditSyntax` tests (grammars, queries, language detection)    |
-| `make app`                        | Release `build/QuickEdit.app` (ad-hoc signed unless `SIGN_IDENTITY` is set) |
-| `make dev` / `make run`           | Debug `build/QuickEdit Dev.app` (own bundle id and defaults)                |
-| `make test-app` / `make run-test` | Background agent build `build/QuickEdit Test.app`                           |
-| `make install`                    | Quits the installed copy and installs the release build to /Applications    |
+| Command                           | What it does                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `swift build` / `make build`      | Debug build of all targets                                                   |
+| `swift test` / `make test`        | Core unit tests (Swift Testing)                                              |
+| `make test-syntax`                | `Packages/QuickEditSyntax` tests (grammars, queries, language detection)     |
+| `make app`                        | Release `build/QuickEdit.app` (ad-hoc signed unless `SIGN_IDENTITY` is set)  |
+| `make dev` / `make run`           | Debug `build/QuickEdit Dev.app` (own bundle id and defaults)                 |
+| `make test-app` / `make run-test` | Background agent build `build/QuickEdit Test.app`                            |
+| `make install`                    | Quits the installed copy and installs the release build to /Applications     |
 | `make release`                    | App, zip, DMG and SHA256SUMS in `build/release` (ad-hoc without credentials) |
 | `make build-notarized`            | Same, signed with the Keychain's Developer ID and notarized + stapled        |
-| `make install-notarized`          | Installs the notarized build to /Applications                               |
-| `make bump V=patch [PUSH=1]`      | Bumps VERSION, commits and tags vX.Y.Z; PUSH=1 starts the Release workflow    |
+| `make install-notarized`          | Installs the notarized build to /Applications                                |
+| `make bump V=patch [PUSH=1]`      | Bumps VERSION, commits and tags vX.Y.Z; PUSH=1 starts the Release workflow   |
 | `make appcast`                    | Signs build/release's zip and updates the Sparkle feed in build/appcast      |
-| `make icon`                       | Redraws `Resources/AppIcon.icon` from `scripts/make-icon.swift`             |
-| `make grammars`                   | Re-vendors the tree-sitter grammars pinned in the syntax package lock file  |
+| `make icon`                       | Redraws `Resources/AppIcon.icon` from `scripts/make-icon.swift`              |
+| `make grammars`                   | Re-vendors the tree-sitter grammars pinned in the syntax package lock file   |
 
 ### Layout
 
-| Path                                            | Contents                                                                     |
-| ----------------------------------------------- | ---------------------------------------------------------------------------- |
-| `Sources/QuickEditCore`                         | UI-free: text format (encoding, line endings, indentation), `.editorconfig`, |
-|                                                 | risky characters, property lists, Markdown rendering, voice note paths       |
-| `Sources/QuickEdit/App`                         | App entry, delegate, settings, variants, menus                               |
-| `Sources/QuickEdit/Document`                    | `NSDocument`, window controller, status bar                                  |
-| `Sources/QuickEdit/Editor`                      | Text view, line number ruler, invisibles, line commands, highlighting glue   |
-| `Sources/QuickEdit/Preview`, `Voice`            | Markdown/HTML preview, voice recorder, on-device transcription               |
-| `Sources/QuickEdit/Debug`                       | URL scheme handler; DEBUG-only test hooks                                    |
-| `Sources/QuickEditQuickLook`                    | Quick Look preview: `.ts`, YAML, TOML, CSS, Lumiose as plain text            |
-| `Sources/QuickEditThumbnail`                    | Quick Look thumbnails: the first lines of the same types on a page           |
-| `Packages/QuickEditSyntax`                      | Local package: language registry, vendored tree-sitter grammars, highlighter |
-| `Resources/`                                    | Info.plist, privacy manifest, `AppIcon.icon`                                 |
-| `scripts/`                                      | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`,  |
-|                                                 | `og-image.html` (the website's social card)                                  |
-| `web/`, `.github/workflows/pages.yml`           | Website (https://itsjavi.com/quickedit/) and its GitHub Pages deployment     |
-| `VERSION`                                       | The marketing version; the build number is the commit count                  |
+| Path                                  | Contents                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `Sources/QuickEditCore`               | UI-free: text format (encoding, line endings, indentation), `.editorconfig`, |
+|                                       | risky characters, property lists, Markdown rendering, voice note paths       |
+| `Sources/QuickEdit/App`               | App entry, delegate, settings, variants, menus                               |
+| `Sources/QuickEdit/Document`          | `NSDocument`, window controller, status bar                                  |
+| `Sources/QuickEdit/Editor`            | Text view, line number ruler, invisibles, line commands, highlighting glue   |
+| `Sources/QuickEdit/Preview`, `Voice`  | Markdown/HTML preview, voice recorder, on-device transcription               |
+| `Sources/QuickEdit/Debug`             | URL scheme handler; DEBUG-only test hooks                                    |
+| `Sources/QuickEditQuickLook`          | Quick Look preview: `.ts`, YAML, TOML, CSS, Lumiose as plain text            |
+| `Sources/QuickEditThumbnail`          | Quick Look thumbnails: the first lines of the same types on a page           |
+| `Packages/QuickEditSyntax`            | Local package: language registry, vendored tree-sitter grammars, highlighter |
+| `Resources/`                          | Info.plist, privacy manifest, `AppIcon.icon`                                 |
+| `scripts/`                            | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`,  |
+|                                       | `og-image.html` (the website's social card)                                  |
+| `web/`, `.github/workflows/pages.yml` | Website (https://itsjavi.com/quickedit/) and its GitHub Pages deployment     |
+| `VERSION`                             | The marketing version; the build number is the commit count                  |
 
 ### Releases
 
@@ -257,10 +257,12 @@ user asks for a release or a notarized build. Bump `VERSION` for each release.
 The README and the website are part of the product. Any task that adds, removes or renames a user-facing feature, or
 substantially changes the UI, updates both in the same task:
 
-- `README.md`: the feature list, and the screenshot table (`docs/screenshots/`) when it shows changed UI.
+- `README.md`: the feature list, and the hero and screenshot table when they show changed UI.
 - `web/index.html`: the feature rows, language list, details grid and Privacy section (also when the app starts using
-  the network, e.g. update checks), and the screenshots in `web/assets/`: WebP copies of `docs/screenshots/`
-  (`cwebp -q 86 -m 6 -alpha_q 100`, `-resize 1600 0` for all but the hero `editor-*`).
+  the network, e.g. update checks).
+- The screenshots in `web/assets/`, shared by the README and the website: light and dark WebP of each window capture
+  (`cwebp -q 86 -m 6 -alpha_q 100`, `-resize 1600 0` for all but the hero `editor-*`). Keep the PNG captures in
+  scratch.
 - `scripts/og-image.html`: re-render `web/assets/og.png` (command in its header) when the hero screenshot, the icon or
   the tagline changes.
 
