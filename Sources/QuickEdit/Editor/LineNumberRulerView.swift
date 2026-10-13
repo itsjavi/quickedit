@@ -22,6 +22,18 @@ final class LineNumberRulerView: NSRulerView {
 
     override var isFlipped: Bool { true }
 
+    /// A faint hairline between the numbers and the text, softer still in dark mode.
+    private static let separatorColor = NSColor(name: "gutterSeparator") { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(white: 1, alpha: 0.07)
+            : NSColor(white: 0, alpha: 0.09)
+    }
+
+    /// Draws only the numbers and our hairline: NSRulerView's own drawing adds a heavier border.
+    override func draw(_ dirtyRect: NSRect) {
+        drawHashMarksAndLabels(in: dirtyRect)
+    }
+
     private var numberFont: NSFont {
         let size = textView?.font?.pointSize ?? 13
         return .monospacedDigitSystemFont(ofSize: max(9, (size * 0.85).rounded()), weight: .regular)
@@ -49,7 +61,7 @@ final class LineNumberRulerView: NSRulerView {
         let rect = dirtyRect.intersection(bounds)
         NSColor.textBackgroundColor.setFill()
         rect.fill()
-        NSColor.separatorColor.withAlphaComponent(0.25).setFill()
+        Self.separatorColor.setFill()
         NSRect(x: bounds.maxX - 1, y: rect.minY, width: 1, height: rect.height).fill()
 
         guard let textView, let layoutManager = textView.layoutManager, let container = textView.textContainer else { return }
