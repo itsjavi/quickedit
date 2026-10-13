@@ -1,6 +1,5 @@
 import AppKit
 import QuickEditCore
-import UniformTypeIdentifiers
 
 /// ⌘P: find a file of the folder by name (fuzzy) and open it as a tab. A sheet on the folder window.
 final class QuickOpenController: NSViewController, NSSearchFieldDelegate, NSTableViewDataSource, NSTableViewDelegate {
@@ -137,7 +136,7 @@ final class QuickOpenController: NSViewController, NSSearchFieldDelegate, NSTabl
         subtitle.font = .systemFont(ofSize: 11)
         subtitle.textColor = .secondaryLabelColor
         subtitle.lineBreakMode = .byTruncatingMiddle
-        let icon = NSImageView(image: NSWorkspace.shared.icon(for: UTType(filenameExtension: (name as NSString).pathExtension) ?? .plainText))
+        let icon = NSImageView(image: FileIcons.file(model.root.appendingPathComponent(result.path), appearance: tableView.effectiveAppearance))
         icon.widthAnchor.constraint(equalToConstant: 18).isActive = true
         let labels = NSStackView(views: [text, subtitle])
         labels.orientation = .vertical

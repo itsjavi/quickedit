@@ -25,6 +25,20 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 }
 
 /// How a Markdown or HTML window shows its file.
+/// Icons of files and folders in the sidebar and Quick Open.
+enum FileIconStyle: String, CaseIterable, Identifiable {
+    case material, finder
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .material: "Material"
+        case .finder: "Finder"
+        }
+    }
+}
+
 enum EditorMode: String, CaseIterable, Identifiable {
     case edit, split, preview
 
@@ -58,6 +72,7 @@ extension Notification.Name {
 
     private nonisolated enum Key {
         static let appearance = "appearance"
+        static let fileIcons = "fileIcons"
         static let fontName = "fontName"
         static let fontSize = "fontSize"
         static let tabWidth = "tabWidth"
@@ -80,6 +95,7 @@ extension Notification.Name {
     private let defaults = UserDefaults.standard
 
     var appearance: AppearanceMode { didSet { store(appearance.rawValue, Key.appearance); applyAppearance() } }
+    var fileIcons: FileIconStyle { didSet { store(fileIcons.rawValue, Key.fileIcons) } }
     /// Empty: the system monospaced font.
     var fontName: String { didSet { store(fontName, Key.fontName) } }
     var fontSize: Double { didSet { store(fontSize, Key.fontSize) } }
@@ -103,6 +119,7 @@ extension Notification.Name {
     private init() {
         defaults.register(defaults: [
             Key.appearance: AppearanceMode.system.rawValue,
+            Key.fileIcons: FileIconStyle.material.rawValue,
             Key.fontName: "",
             Key.fontSize: 13.0,
             Key.tabWidth: 4,
@@ -120,6 +137,7 @@ extension Notification.Name {
             Key.autosaveInPlace: true,
         ])
         appearance = AppearanceMode(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
+        fileIcons = FileIconStyle(rawValue: defaults.string(forKey: Key.fileIcons) ?? "") ?? .material
         fontName = defaults.string(forKey: Key.fontName) ?? ""
         fontSize = defaults.double(forKey: Key.fontSize)
         tabWidth = defaults.integer(forKey: Key.tabWidth)

@@ -218,6 +218,7 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `make appcast`                    | Signs build/release's zip and updates the Sparkle feed in build/appcast      |
 | `make icon`                       | Redraws `Resources/AppIcon.icon` from `scripts/make-icon.swift`              |
 | `make grammars`                   | Re-vendors the tree-sitter grammars pinned in the syntax package lock file   |
+| `make material-icons [V=x.y.z]`   | Re-vendors the Material icons subset (pinned release, or updates to `V`)     |
 
 ### Layout
 
@@ -234,10 +235,21 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `Sources/QuickEditThumbnail`          | Quick Look thumbnails: the first lines of the same types on a page           |
 | `Packages/QuickEditSyntax`            | Local package: language registry, vendored tree-sitter grammars, highlighter |
 | `Resources/`                          | Info.plist, privacy manifest, `AppIcon.icon`                                 |
+| `Resources/MaterialIcons/`            | Material Icon Theme subset for the sidebar and Quick Open (see below)        |
 | `scripts/`                            | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`,  |
 |                                       | `og-image.html` (the website's social card)                                  |
 | `web/`, `.github/workflows/pages.yml` | Website (https://itsjavi.com/quickedit/) and its GitHub Pages deployment     |
 | `VERSION`                             | The marketing version; the build number is the commit count                  |
+
+### File icons
+
+The sidebar and Quick Open use a subset of the Material Icon Theme (`Sources/QuickEdit/Folders/FileIcons.swift`,
+resolved by `MaterialIconTheme` in Core like VS Code: file name, longest extension, language, default). Only
+`Resources/MaterialIcons/subset.json` (the extensions, file names, folders and languages QuickEdit wants icons for),
+`quickedit-icons.json` and `icons/quickedit-*.svg` (QuickEdit's own icons, the Lumiose orbs) are edited by hand.
+`make material-icons` downloads the release pinned in `VERSION` (SHA-256 checked) and rewrites the rest; to want more
+icons, add names to `subset.json` and run it; to update upstream, `make material-icons V=x.y.z`. `MaterialIconThemeTests`
+checks the result.
 
 ### Releases
 
@@ -291,7 +303,7 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
 - `ui/open?path=`, `ui/new?text=`, `ui/close`, `ui/save`, `ui/window-size?w=&h=`, `ui/appearance?value=system|light|dark`
 - `ui/type?text=`, `ui/select?location=&length=`, `ui/goto-line?line=`
 - `ui/command?name=` (editor and menu commands by selector name, e.g. `moveLineUp:`, `toggleComment:`)
-- `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|font-size&value=`
+- `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|font-size|file-icons&value=` (`file-icons`: `material|finder`)
 - `ui/voice-start?seconds=|from=` (recorder with the microphone replaced by a tone or clip), `ui/voice-stop`, `ui/voice-cancel`,
   `ui/transcript?src=&text=` (inserts a transcript like the sheet's Insert)
 - `ui/indentation?style=tabs|spaces&width=[&convert=1]`, `ui/line-endings?value=lf|crlf|cr`, `ui/language?id=` (empty = detect)

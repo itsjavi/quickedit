@@ -1,6 +1,5 @@
 import AppKit
 import QuickEditCore
-import UniformTypeIdentifiers
 
 /// A node of the file tree. NSOutlineView needs stable object identity per item, so nodes are cached by URL.
 final class FolderNode: NSObject {
@@ -17,9 +16,7 @@ final class FolderNode: NSObject {
 /// `FolderModel` (expansion, filters); a single click opens a file as a tab of the group.
 final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
     let model: FolderModel
-    private let outlineView = NSOutlineView()
-    /// One image for every folder row, so its tinted rendering is made once, not per row and tab.
-    private static let folderImage = NSImage(systemSymbolName: "folder", accessibilityDescription: "Folder")
+    private let outlineView = FolderOutlineView()
     private var nodes: [URL: FolderNode] = [:]
     private var isSyncingExpansion = false
     /// The tree changed while this sidebar's tab wasn't on screen: it reloads when shown.
@@ -62,6 +59,9 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
         NotificationCenter.default.addObserver(self, selector: #selector(modelDidChange(_:)), name: .folderModelDidChange, object: model)
         NotificationCenter.default.addObserver(self, selector: #selector(expansionChanged(_:)), name: .folderExpansionDidChange, object: model)
         NotificationCenter.default.addObserver(self, selector: #selector(occlusionChanged(_:)), name: NSWindow.didChangeOcclusionStateNotification, object: nil)
+        // Light and dark icons, and the File icons setting.
+        outlineView.onAppearanceChange = { [weak self] in self?.refreshIcons() }
+        NotificationCenter.default.addObserver(self, selector: #selector(settingsChanged(_:)), name: .editorSettingsDidChange, object: nil)
         reload()
     }
 
@@ -123,10 +123,7 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
             return cell
         }()
         cell.textField?.stringValue = node.entry.name
-        cell.imageView?.image = node.entry.isDirectory
-            ? Self.folderImage
-            : NSWorkspace.shared.icon(for: UTType(filenameExtension: node.url.pathExtension) ?? .plainText)
-        cell.imageView?.contentTintColor = node.entry.isDirectory ? .controlAccentColor : nil
+        setIcon(of: cell, for: node)
         let dimmed = node.entry.isHidden || node.entry.isIgnored
         cell.alphaValue = dimmed ? 0.5 : 1
         cell.toolTip = node.entry.isIgnored ? "Ignored by .gitignore" : nil
@@ -135,14 +132,44 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
 
     // MARK: Expansion and reloads
 
+    // MARK: Icons
+
+    private func setIcon(of cell: NSTableCellView, for node: FolderNode) {
+        let appearance = outlineView.effectiveAppearance
+        cell.imageView?.image = node.entry.isDirectory
+            ? FileIcons.folder(node.url, expanded: outlineView.isItemExpanded(node), appearance: appearance)
+            : FileIcons.file(node.url, appearance: appearance)
+        cell.imageView?.contentTintColor = node.entry.isDirectory && !FileIcons.usesMaterial ? .controlAccentColor : nil
+    }
+
+    /// Sets the icons of the rows on screen again (appearance, settings, a folder opening or closing).
+    private func refreshIcons(of only: FolderNode? = nil) {
+        outlineView.enumerateAvailableRowViews { rowView, row in
+            guard let node = outlineView.item(atRow: row) as? FolderNode, only == nil || only === node,
+                  let cell = rowView.view(atColumn: 0) as? NSTableCellView
+            else { return }
+            setIcon(of: cell, for: node)
+        }
+    }
+
+    @objc private func settingsChanged(_ notification: Notification) {
+        refreshIcons()
+    }
+
+    // MARK: Expansion and reloads (shared)
+
     func outlineViewItemDidExpand(_ notification: Notification) {
-        guard !isSyncingExpansion, let node = notification.userInfo?["NSObject"] as? FolderNode else { return }
+        guard let node = notification.userInfo?["NSObject"] as? FolderNode else { return }
+        refreshIcons(of: node)  // an open folder's icon
+        guard !isSyncingExpansion else { return }
         model.expanded.insert(node.url)
         NotificationCenter.default.post(name: .folderExpansionDidChange, object: model)
     }
 
     func outlineViewItemDidCollapse(_ notification: Notification) {
-        guard !isSyncingExpansion, let node = notification.userInfo?["NSObject"] as? FolderNode else { return }
+        guard let node = notification.userInfo?["NSObject"] as? FolderNode else { return }
+        refreshIcons(of: node)
+        guard !isSyncingExpansion else { return }
         model.expanded.remove(node.url)
         NotificationCenter.default.post(name: .folderExpansionDidChange, object: model)
     }
@@ -362,4 +389,14 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
 
 extension Notification.Name {
     static let folderExpansionDidChange = Notification.Name("QuickEditFolderExpansionDidChange")
+}
+
+/// Tells the sidebar when the appearance changes, so light and dark icons switch.
+final class FolderOutlineView: NSOutlineView {
+    var onAppearanceChange: (() -> Void)?
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onAppearanceChange?()
+    }
 }

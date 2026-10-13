@@ -273,6 +273,7 @@ enum DebugHooks {
         case "wrap": settings.wrapLines = on
         case "current-line": settings.highlightCurrentLine = on
         case "font-size": if let size = Double(query["value"] ?? "") { settings.fontSize = size }
+        case "file-icons": if let style = FileIconStyle(rawValue: query["value"] ?? "") { settings.fileIcons = style }
         default: break
         }
     }

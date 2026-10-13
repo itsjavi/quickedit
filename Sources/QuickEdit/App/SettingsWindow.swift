@@ -50,6 +50,11 @@ struct GeneralSettingsView: View {
                     ForEach(AppearanceMode.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                Picker("File icons", selection: $settings.fileIcons) {
+                    ForEach(FileIconStyle.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .help("Icons in a folder's sidebar and Quick Open: the Material Icon Theme, or Finder's")
                 LabeledContent("Font") {
                     HStack {
                         TextField("System Monospaced", text: $settings.fontName)

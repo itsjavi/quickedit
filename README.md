@@ -39,6 +39,8 @@ for byte as it came in, except what you changed. There's nothing to configure an
 - **Folders.** File › Open Folder… (⇧⌘O), or drop a folder on QuickEdit: a file tree sidebar (dotfiles and
   `.gitignore`d files hidden until you show them), the folder's files as tabs of one window, ⌘P to open any file by
   name, and New File, New Folder, Rename, Move (drag) and Move to Trash in the tree. Open files follow renames and moves.
+  Files and folders get [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) icons,
+  in light and dark variants (or Finder's icons, in Settings).
 - **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, [Lumiose](https://itsjavi.com/lumiose/) components (`.stsx`/`.sjsx`,
   with their `<style>` blocks as CSS), CSS, SCSS/Sass/Less, HTML, Vue, Svelte, Markdown, CSV/TSV (rainbow columns),
   JSON/JSONC/JSON Lines, YAML, TOML, GraphQL, Protocol Buffers, Terraform/HCL, Nix, SpiceDB schemas, C, C++,
@@ -82,7 +84,7 @@ for byte as it came in, except what you changed. There's nothing to configure an
     <td colspan="2">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="web/assets/folders-dark.webp">
-        <img src="web/assets/folders-light.webp" alt="The QuickEdit source folder open in QuickEdit: a file tree in the sidebar with FolderModel.swift selected, and that file in the second of two tabs, highlighted as Swift.">
+        <img src="web/assets/folders-light.webp" alt="The QuickEdit source folder open in QuickEdit: a file tree with Material icons (coloured folders, Swift files) in the sidebar, FolderModel.swift selected, and that file in the second of two tabs, highlighted as Swift.">
       </picture>
     </td>
   </tr>
@@ -141,7 +143,9 @@ it.
 
 Syntax highlighting uses [tree-sitter](https://tree-sitter.github.io/) through
 [SwiftTreeSitter](https://github.com/ChimeHQ/SwiftTreeSitter) and the grammars listed in
-[NOTICES.md](Packages/QuickEditSyntax/Vendor/NOTICES.md). Markdown rendering uses
+[NOTICES.md](Packages/QuickEditSyntax/Vendor/NOTICES.md). File and folder icons are a subset of the
+[Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) (MIT,
+[license](Resources/MaterialIcons/LICENSE.txt)). Markdown rendering uses
 [cmark-gfm](https://github.com/swiftlang/swift-cmark), and updates use [Sparkle](https://sparkle-project.org).
 
 ## License

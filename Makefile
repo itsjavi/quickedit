@@ -1,4 +1,4 @@
-.PHONY: build test test-syntax app dev test-app run run-test install release build-notarized install-notarized appcast bump icon grammars fmt clean
+.PHONY: build test test-syntax app dev test-app run run-test install release build-notarized install-notarized appcast bump icon grammars material-icons fmt clean
 
 build:
 	swift build
@@ -62,6 +62,10 @@ icon:
 
 grammars:
 	Packages/QuickEditSyntax/scripts/vendor-grammars.sh
+
+# Re-vendors the pinned Material icons subset; V=5.39.0 updates to that release.
+material-icons:
+	scripts/vendor-material-icons.sh $(V)
 
 fmt:
 	npx -y oxfmt .

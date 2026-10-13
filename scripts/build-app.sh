@@ -43,6 +43,8 @@ ditto "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 cp "$BIN/QuickEdit" "$APP/Contents/MacOS/QuickEdit"
 cp Resources/Info.plist "$PLIST"
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/"
+# File and folder icons for the sidebar and Quick Open (scripts/vendor-material-icons.sh).
+rsync -a --delete --exclude subset.json Resources/MaterialIcons/ "$APP/Contents/Resources/MaterialIcons/"
 
 pb() { /usr/libexec/PlistBuddy -c "$1" "$PLIST"; }
 pb "Set :CFBundleIdentifier $BUNDLE_ID"

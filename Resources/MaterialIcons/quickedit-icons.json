@@ -1,0 +1,19 @@
+{
+  "comment": "QuickEdit's additions to material-icons.json (same format; these win): Lumiose components (.stsx, .sjsx) as a lit orb, like Lumiose's logo, in two peaches (deeper for TypeScript). The icons are icons/quickedit-*.svg, drawn for QuickEdit.",
+  "iconDefinitions": {
+    "quickedit-lumiose-tsx": { "iconPath": "./icons/quickedit-lumiose-tsx.svg" },
+    "quickedit-lumiose-tsx_light": { "iconPath": "./icons/quickedit-lumiose-tsx_light.svg" },
+    "quickedit-lumiose-jsx": { "iconPath": "./icons/quickedit-lumiose-jsx.svg" },
+    "quickedit-lumiose-jsx_light": { "iconPath": "./icons/quickedit-lumiose-jsx_light.svg" }
+  },
+  "fileExtensions": {
+    "stsx": "quickedit-lumiose-tsx",
+    "sjsx": "quickedit-lumiose-jsx"
+  },
+  "light": {
+    "fileExtensions": {
+      "stsx": "quickedit-lumiose-tsx_light",
+      "sjsx": "quickedit-lumiose-jsx_light"
+    }
+  }
+}
