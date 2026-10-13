@@ -42,6 +42,26 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
+    // MARK: Unsaved-changes indicator
+
+    override func synchronizeWindowTitleWithDocumentName() {
+        super.synchronizeWindowTitleWithDocumentName()
+        updateTabTitle()
+    }
+
+    /// Tabs show a dot before the name of a file with unsaved changes (the title bar already says "Edited").
+    /// Called by the document after every change-count update, once AppKit has applied it.
+    func updateTabTitle() {
+        guard let window, let document = document as? NSDocument else { return }
+        guard document.isDocumentEdited else {
+            window.tab.attributedTitle = nil
+            return
+        }
+        let title = NSMutableAttributedString(string: "● ", attributes: [.foregroundColor: NSColor.controlAccentColor])
+        title.append(NSAttributedString(string: document.displayName ?? window.title))
+        window.tab.attributedTitle = title
+    }
+
     var sidebar: FolderSidebarViewController? { (contentViewController as? FolderSplitViewController)?.sidebar }
 
     func windowDidBecomeKey(_ notification: Notification) {

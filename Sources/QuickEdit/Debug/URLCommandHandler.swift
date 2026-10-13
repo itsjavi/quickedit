@@ -342,7 +342,7 @@ enum DebugHooks {
             let prefix = "doc\(index)"
             lines.append("\(prefix).path: \(editor.document.fileURL?.path ?? "untitled")")
             lines.append("\(prefix).window: \(editor.view.window.map { "\($0.frame) screen=\($0.screen?.visibleFrame ?? .zero)" } ?? "-")")
-            lines.append("\(prefix).edited: \(editor.document.isDocumentEdited)")
+            lines.append("\(prefix).edited: \(editor.document.isDocumentEdited) tab=\(editor.view.window?.tab.attributedTitle?.string ?? editor.view.window?.title ?? "-")")
             lines.append("\(prefix).position: \(state.line):\(state.column) selected=\(state.selectionLength) lines=\(state.lineCount)")
             lines.append("\(prefix).language: \(state.languageName)")
             lines.append("\(prefix).indentation: \(state.indentation.style.rawValue) \(state.indentation.width) (\(state.indentationSource.rawValue))")

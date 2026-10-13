@@ -121,6 +121,9 @@ final class TextDocument: NSDocument {
                 trimTrailingWhitespace: state.editorConfig.trimTrailingWhitespace ?? AppSettings.shared.trimTrailingWhitespace,
                 insertFinalNewline: state.editorConfig.insertFinalNewline ?? AppSettings.shared.insertFinalNewline)
         }
+        // Typing after a save must be a new undo step: otherwise NSTextView keeps coalescing it into the saved
+        // one, the change count never moves, and the document doesn't know it has unsaved changes.
+        editor?.textView.breakUndoCoalescing()
         let isNewName = saveOperation == .saveAsOperation
         super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
             // An untitled file saved as notes.csv now has a language, a preview or a table.
@@ -205,6 +208,27 @@ final class TextDocument: NSDocument {
     override func presentError(_ error: Error) -> Bool {
         guard Dialogs.shouldPresent(error) else { return false }
         return super.presentError(error)
+    }
+
+    // MARK: Unsaved-changes indicator
+
+    override func updateChangeCount(_ change: NSDocument.ChangeType) {
+        super.updateChangeCount(change)
+        refreshTabTitles()
+    }
+
+    override func updateChangeCount(withToken changeCountToken: Any, for saveOperation: NSDocument.SaveOperationType) {
+        super.updateChangeCount(withToken: changeCountToken, for: saveOperation)
+        refreshTabTitles()
+    }
+
+    /// Edits, undo, saves and reverts all end up in a change-count update; the tab's dot follows on the next turn.
+    private func refreshTabTitles() {
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated {
+                self?.windowControllers.forEach { ($0 as? DocumentWindowController)?.updateTabTitle() }
+            }
+        }
     }
 
     // MARK: Windows
