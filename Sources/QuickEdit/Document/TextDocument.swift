@@ -121,7 +121,12 @@ final class TextDocument: NSDocument {
                 trimTrailingWhitespace: state.editorConfig.trimTrailingWhitespace ?? AppSettings.shared.trimTrailingWhitespace,
                 insertFinalNewline: state.editorConfig.insertFinalNewline ?? AppSettings.shared.insertFinalNewline)
         }
-        super.save(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
+        let isNewName = saveOperation == .saveAsOperation
+        super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
+            // An untitled file saved as notes.csv now has a language, a preview or a table.
+            if error == nil, isNewName { self?.editor?.updateLanguage() }
+            completionHandler(error)
+        }
     }
 
     // MARK: Changes on disk

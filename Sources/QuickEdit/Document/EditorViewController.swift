@@ -158,6 +158,20 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         tableController?.view.isHidden = !shows
         splitView.adjustSubviews()
         if !shows, let window = view.window { window.makeFirstResponder(textView) }
+        if !shows { refreshEditorAfterShowing() }
+    }
+
+    /// The editor was hidden (Table or Preview mode) while the text changed: its colouring and line numbers only
+    /// cover what was visible then, which was nothing. Redo them once it's back on screen and laid out.
+    private func refreshEditorAfterShowing() {
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, !self.scrollView.isHidden else { return }
+                self.colorizer.colorVisibleRange()
+                self.ruler?.textDidChange()
+                self.updatePosition()
+            }
+        }
     }
 
     @objc func toggleTable(_ sender: Any?) { setShowsTable(!state.showsTable) }
@@ -176,9 +190,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
             previewHost = host
         }
         if mode != .edit { preview.text = textView.string }
+        let wasHidden = scrollView.isHidden
         scrollView.isHidden = mode == .preview
         previewHost?.isHidden = mode == .edit
         splitView.adjustSubviews()
+        if wasHidden && mode != .preview { refreshEditorAfterShowing() }
         if mode == .split, splitView.subviews.count == 2 {
             splitView.setPosition(splitView.bounds.width / 2, ofDividerAt: 0)
         }
@@ -247,6 +263,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         applyBaseAttributes()
     }
 
+    /// The attributes every character has, kept up to date by `applyBaseAttributes()`.
+    private var currentBaseAttributes: [NSAttributedString.Key: Any] = [:]
+
     private var baseAttributes: [NSAttributedString.Key: Any] {
         let font = settings.editorFont
         let paragraph = NSMutableParagraphStyle()
@@ -260,6 +279,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     /// The whole text uses one font and tab width; syntax colours are layout-manager temporary attributes.
     private func applyBaseAttributes() {
         let attributes = baseAttributes
+        currentBaseAttributes = attributes
         let storage = document.textStorage
         textView.typingAttributes = attributes
         textView.font = attributes[.font] as? NSFont
@@ -355,6 +375,18 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     }
 
     // MARK: Text events
+
+    /// Inserted text always gets the base font and colour, whatever inserted it: text replaced into an empty
+    /// storage (Table mode rows, voice notes, line commands) would otherwise get AppKit's default Helvetica in
+    /// black, and typing after it would inherit that.
+    nonisolated func textStorage(_ textStorage: NSTextStorage, willProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
+        guard editedMask.contains(.editedCharacters), editedRange.length > 0 else { return }
+        MainActor.assumeIsolated {
+            // The document's storage is the one being edited (it has no other delegate).
+            guard !currentBaseAttributes.isEmpty else { return }
+            document.textStorage.setAttributes(currentBaseAttributes, range: editedRange)
+        }
+    }
 
     nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters) else { return }
