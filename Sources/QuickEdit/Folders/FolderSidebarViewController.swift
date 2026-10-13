@@ -20,6 +20,8 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
     private let outlineView = NSOutlineView()
     private var nodes: [URL: FolderNode] = [:]
     private var isSyncingExpansion = false
+    /// The tree changed while this sidebar's tab wasn't on screen: it reloads when shown.
+    private var needsReload = false
 
     init(model: FolderModel) {
         self.model = model
@@ -57,6 +59,7 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
         view = scrollView
         NotificationCenter.default.addObserver(self, selector: #selector(modelDidChange(_:)), name: .folderModelDidChange, object: model)
         NotificationCenter.default.addObserver(self, selector: #selector(expansionChanged(_:)), name: .folderExpansionDidChange, object: model)
+        NotificationCenter.default.addObserver(self, selector: #selector(occlusionChanged(_:)), name: NSWindow.didChangeOcclusionStateNotification, object: nil)
         reload()
     }
 
@@ -148,8 +151,34 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
         NotificationCenter.default.post(name: .folderExpansionDidChange, object: model)
     }
 
+    /// Reloads only the folders that changed, and only in tabs on screen: with many tabs open, one change otherwise
+    /// rebuilt every tab's tree.
     @objc private func modelDidChange(_ notification: Notification) {
-        reload()
+        guard isShown else {
+            needsReload = true
+            return
+        }
+        if !needsReload, let folders = notification.userInfo?[FolderModel.changedFoldersKey] as? Set<URL>,
+           !folders.contains(model.root.standardizedFileURL) {
+            reload(folders)
+        } else {
+            reload()
+        }
+    }
+
+    /// On screen: the window is visible, not minimized, covered or a tab in the background.
+    private var isShown: Bool {
+        view.window?.occlusionState.contains(.visible) == true
+    }
+
+    @objc private func occlusionChanged(_ notification: Notification) {
+        guard notification.object as? NSWindow === view.window, isShown else { return }
+        reloadIfNeeded()
+    }
+
+    /// Catches up with changes made while the tab was hidden.
+    func reloadIfNeeded() {
+        if needsReload { reload() }
     }
 
     @objc private func expansionChanged(_ notification: Notification) {
@@ -158,10 +187,25 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
 
     /// Re-reads the tree, keeping expansion (shared) and the selection.
     func reload() {
+        needsReload = false
         let selected = (outlineView.item(atRow: outlineView.selectedRow) as? FolderNode)?.url
         outlineView.reloadData()
         applyExpansion()
-        if let selected { reveal(selected, select: true) }
+        if let selected { restoreSelection(selected) }
+    }
+
+    /// Re-reads the children of `folders` that are in the tree now.
+    private func reload(_ folders: Set<URL>) {
+        let selected = (outlineView.item(atRow: outlineView.selectedRow) as? FolderNode)?.url
+        var reloaded = false
+        for folder in folders {
+            guard let node = nodes[folder], outlineView.row(forItem: node) >= 0 else { continue }
+            outlineView.reloadItem(node, reloadChildren: true)
+            reloaded = true
+        }
+        guard reloaded else { return }
+        applyExpansion()
+        if let selected { restoreSelection(selected) }
     }
 
     private func applyExpansion() {
@@ -178,6 +222,13 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
             }
             row += 1
         }
+    }
+
+    /// Selects `url` again after a reload when its row is still there, without scrolling to it.
+    private func restoreSelection(_ url: URL) {
+        guard let node = nodes[url.standardizedFileURL] else { return }
+        let row = outlineView.row(forItem: node)
+        if row >= 0, row != outlineView.selectedRow { outlineView.selectRowIndexes([row], byExtendingSelection: false) }
     }
 
     /// Expands the parents of `url` and scrolls to it (the window's file).

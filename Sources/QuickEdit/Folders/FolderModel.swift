@@ -70,27 +70,61 @@ extension Notification.Name {
         NotificationCenter.default.post(name: .folderModelDidChange, object: self)
     }
 
-    /// FSEvents: re-list the folders whose contents changed; a changed `.gitignore` re-reads every rule.
+    /// FSEvents: re-lists the loaded folders the events touch and tells the sidebars which ones changed. Events in
+    /// folders nobody has expanded (a build folder churning, say) and edits that leave a listing as it was cost
+    /// almost nothing and reload no sidebar; a changed `.gitignore` re-reads every rule.
     private func filesChanged(_ paths: [String]) {
+        var touched: Set<URL> = []
+        var indexIsStale = false
         if paths.contains(where: { ($0 as NSString).lastPathComponent == ".gitignore" || $0.contains("/.git/info/exclude") }) {
             rules.reload()
-            listings.removeAll()
+            touched = Set(listings.keys)
+            indexIsStale = true
         } else {
             for path in paths {
-                let url = URL(fileURLWithPath: path).standardizedFileURL
-                listings[url.deletingLastPathComponent()] = nil
-                listings[url] = nil
+                let url = listingKey(forEventPath: path)
+                for folder in [url.deletingLastPathComponent(), url] where listings[folder] != nil {
+                    touched.insert(folder)
+                }
+                if !indexIsStale, index != nil, isIndexed(url) { indexIsStale = true }
             }
         }
-        index = nil
-        NotificationCenter.default.post(name: .folderModelDidChange, object: self)
+        if indexIsStale { index = nil }
+        var changed: Set<URL> = []
+        for folder in touched {
+            let entries = try? FolderListing.children(of: folder, rules: rules)
+            if entries != listings[folder] { changed.insert(folder) }
+            listings[folder] = entries
+        }
+        guard !changed.isEmpty else { return }
+        NotificationCenter.default.post(name: .folderModelDidChange, object: self, userInfo: [Self.changedFoldersKey: changed])
     }
+
+    /// An FSEvents path (a real path, `/private/tmp/…`) in the form listings are keyed by (`standardizedFileURL`,
+    /// which drops `/private` only for paths that exist), also for items that are gone.
+    private func listingKey(forEventPath path: String) -> URL {
+        let parent = URL(fileURLWithPath: (path as NSString).deletingLastPathComponent, isDirectory: true).standardizedFileURL
+        return parent.appendingPathComponent((path as NSString).lastPathComponent)
+    }
+
+    /// Whether Quick Open's index lists `url` (or would list files under it).
+    private func isIndexed(_ url: URL) -> Bool {
+        guard contains(url) else { return false }
+        if showsHiddenAndIgnored { return true }
+        if relativePath(of: url).split(separator: "/").contains(where: { $0.hasPrefix(".") }) { return false }
+        return !rules.isIgnored(url, isDirectory: false)
+    }
+
+    /// The folders whose listing changed, in a `folderModelDidChange` notification's user info. Without it,
+    /// everything may have changed.
+    static let changedFoldersKey = "changedFolders"
 
     /// Re-lists `folder` now (after a file operation, before FSEvents reports it).
     func refresh(_ folder: URL) {
-        listings[folder.standardizedFileURL] = nil
+        let key = folder.standardizedFileURL
+        listings[key] = nil
         index = nil
-        NotificationCenter.default.post(name: .folderModelDidChange, object: self)
+        NotificationCenter.default.post(name: .folderModelDidChange, object: self, userInfo: [Self.changedFoldersKey: Set([key])])
     }
 
     // MARK: Quick Open

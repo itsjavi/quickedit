@@ -173,7 +173,9 @@ enum DebugHooks {
                 lines.append("folder: \(model.root.path) hidden=\(model.showsHiddenAndIgnored)")
                 let windows = FolderRegistry.windows(of: model)
                 lines.append("  windows: \(windows.map(\.title)) tabs=\(windows.first?.tabbedWindows?.count ?? 1)")
-                let sidebar = windows.compactMap { ($0.windowController as? DocumentWindowController)?.sidebar
+                // The selected tab's sidebar: hidden tabs catch up with changes when shown.
+                let shown = windows.sorted { a, _ in (a.tabGroup?.selectedWindow ?? a) === a }
+                let sidebar = shown.compactMap { ($0.windowController as? DocumentWindowController)?.sidebar
                     ?? ($0.contentViewController as? FolderSplitViewController)?.sidebar }.first
                 for row in sidebar?.visibleRows ?? [] { lines.append("  | " + row) }
             }
