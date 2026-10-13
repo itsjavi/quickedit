@@ -76,6 +76,9 @@
 				<string>com.itsjavi.quickedit.reject</string>
 				<string>com.itsjavi.lumiose.stsx</string>
 				<string>com.itsjavi.lumiose.sjsx</string>
+				<string>com.itsjavi.quickedit.gdscript</string>
+				<string>com.itsjavi.quickedit.godot-resource</string>
+				<string>com.itsjavi.quickedit.gdshader</string>
 			</array>
 			<key>NSDocumentClass</key>
 			<string>TextDocument</string>
@@ -147,6 +150,18 @@
 			</array>
 			<key>NSDocumentClass</key>
 			<string>TextDocument</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Folder</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>None</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.folder</string>
+			</array>
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
@@ -720,6 +735,59 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>sjsx</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>GDScript Source</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.itsjavi.quickedit.gdscript</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>gd</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Godot Resource</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.itsjavi.quickedit.godot-resource</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>tscn</string>
+					<string>tres</string>
+					<string>godot</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.source-code</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Godot Shader</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.itsjavi.quickedit.gdshader</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>gdshader</string>
 				</array>
 			</dict>
 		</dict>
