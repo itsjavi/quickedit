@@ -1,4 +1,4 @@
-.PHONY: build test test-syntax app dev test-app run run-test install release build-notarized install-notarized icon grammars fmt clean
+.PHONY: build test test-syntax app dev test-app run run-test install release build-notarized install-notarized appcast bump icon grammars fmt clean
 
 build:
 	swift build
@@ -48,6 +48,14 @@ install-notarized: build-notarized
 	-osascript -e 'tell application id "com.itsjavi.quickedit" to quit' 2>/dev/null
 	rm -rf /Applications/QuickEdit.app
 	cp -R build/release/QuickEdit.app /Applications/QuickEdit.app
+
+# Signs build/release's zip (EdDSA key "quickedit" from the Keychain) and updates build/appcast/appcast.xml.
+appcast:
+	scripts/appcast.sh
+
+# Bumps VERSION, commits and tags it: make bump V=patch|minor|major|X.Y.Z [PUSH=1] (docs/releasing.md)
+bump:
+	scripts/bump-version.sh $(V) $(if $(PUSH),--push)
 
 icon:
 	swift scripts/make-icon.swift

@@ -194,6 +194,8 @@
 	<true/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/itsjavi/quickedit/releases/latest/download/appcast.xml</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>

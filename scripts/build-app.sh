@@ -24,7 +24,7 @@ if [[ -z "${QUICKLOOK:-}" ]]; then QUICKLOOK=$([[ "$VARIANT" == "release" ]] && 
 QL_EXTENSIONS=(QuickEditQuickLook:Info.plist:quicklook QuickEditThumbnail:Thumbnail-Info.plist:thumbnail)
 
 # OPTIMIZE=1 optimizes a debug (Dev/Test) build, keeping its DEBUG hooks, for performance measurements.
-SWIFT_FLAGS=(-c "$CONFIG")
+SWIFT_FLAGS=(-c "$CONFIG" --disable-keychain)  # never a Keychain prompt when packages download
 if [[ -n "${OPTIMIZE:-}" && "$CONFIG" == "debug" ]]; then
   SWIFT_FLAGS+=(-Xswiftc -O -Xcc -O2 --scratch-path .build/optimized-debug)
 fi
@@ -37,7 +37,9 @@ APP="build/$NAME.app"
 PLIST="$APP/Contents/Info.plist"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
+# Sparkle (updates); ditto keeps the framework's symlinks.
+ditto "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 cp "$BIN/QuickEdit" "$APP/Contents/MacOS/QuickEdit"
 cp Resources/Info.plist "$PLIST"
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/"
@@ -52,6 +54,19 @@ pb "Set :CFBundleURLTypes:0:CFBundleURLName $BUNDLE_ID"
 pb "Set :CFBundleURLTypes:0:CFBundleURLSchemes:0 $SCHEME"
 pb "Set :CFBundleShortVersionString $VERSION"
 pb "Set :CFBundleVersion $BUILD"
+# Updates (Sparkle, decision-7): the feed URL is in Info.plist; the public EdDSA key comes from
+# Resources/SparklePublicKey.txt. Dev and Test builds have no updater, so they never replace themselves.
+if [[ "$VARIANT" == "release" ]]; then
+  # No key file yet is a warning, not a failure (set -e would stop at a failed read).
+  SPARKLE_PUBLIC_KEY="${SPARKLE_PUBLIC_KEY:-$({ tr -d '[:space:]' < Resources/SparklePublicKey.txt; } 2>/dev/null || true)}"
+  if [[ -n "$SPARKLE_PUBLIC_KEY" ]]; then
+    pb "Add :SUPublicEDKey string $SPARKLE_PUBLIC_KEY"
+  else
+    echo "⚠ No Resources/SparklePublicKey.txt: this build can't update itself" >&2
+  fi
+else
+  pb "Delete :SUFeedURL"
+fi
 if [[ "$VARIANT" == "test" ]]; then
   # Background agent build: no Dock icon, never steals focus, no App Nap.
   pb "Add :LSUIElement bool true"
@@ -86,6 +101,18 @@ if [[ "$QUICKLOOK" == "1" ]]; then
 fi
 
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+SIGN_FLAGS=(--force --sign "$SIGN_IDENTITY")
+if [[ "$SIGN_IDENTITY" != "-" ]]; then SIGN_FLAGS+=(--options runtime --timestamp); fi
+# codesign without its "replacing existing signature" note (Sparkle's parts come pre-signed).
+sign() { codesign "$@" 2> >(grep -v ': replacing existing signature$' >&2); }
+# Nested code is signed before the bundle that contains it, innermost first (Sparkle's order; the Downloader
+# service keeps its own entitlements).
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+sign "${SIGN_FLAGS[@]}" "$SPARKLE/XPCServices/Installer.xpc"
+sign "${SIGN_FLAGS[@]}" --preserve-metadata=entitlements "$SPARKLE/XPCServices/Downloader.xpc"
+sign "${SIGN_FLAGS[@]}" "$SPARKLE/Autoupdate"
+sign "${SIGN_FLAGS[@]}" "$SPARKLE/Updater.app"
+sign "${SIGN_FLAGS[@]}" "$APP/Contents/Frameworks/Sparkle.framework"
 if [[ "$QUICKLOOK" == "1" ]]; then
   # Both extensions share the sandbox entitlements.
   QL_ENTITLEMENTS=Resources/QuickLook/QuickEditQuickLook.entitlements

@@ -12,6 +12,8 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-cmark.git", from: "0.9.0"),
         // Language registry, vendored tree-sitter grammars and the highlighter (decision-2).
         .package(path: "Packages/QuickEditSyntax"),
+        // App updates (decision-7). build-app.sh embeds Sparkle.framework in Contents/Frameworks.
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.0"),
     ],
     targets: [
         .target(
@@ -24,9 +26,15 @@ let package = Package(
         ),
         .executableTarget(
             name: "QuickEdit",
-            dependencies: ["QuickEditCore", .product(name: "QuickEditSyntax", package: "QuickEditSyntax")],
+            dependencies: [
+                "QuickEditCore",
+                .product(name: "QuickEditSyntax", package: "QuickEditSyntax"),
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources/QuickEdit",
-            swiftSettings: [.defaultIsolation(MainActor.self)]
+            swiftSettings: [.defaultIsolation(MainActor.self)],
+            // The app bundle keeps Sparkle.framework in Contents/Frameworks.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         // Quick Look preview extension, assembled into Contents/PlugIns/QuickEditQuickLook.appex by build-app.sh.
         .executableTarget(

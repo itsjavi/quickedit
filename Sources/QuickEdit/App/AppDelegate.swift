@@ -1,8 +1,17 @@
 import AppKit
+import Sparkle
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var settings: AppSettings { .shared }
     private var settingsWindow: NSWindow?
+
+    /// Checks the update feed and installs new versions (Sparkle, decision-7). Only release builds with a feed and a
+    /// public key have one; it starts a moment after launch so its first-run question never races document windows.
+    let updater: SPUStandardUpdaterController? = {
+        let info = Bundle.main.infoDictionary ?? [:]
+        guard !AppVariant.isBackground, info["SUFeedURL"] != nil, info["SUPublicEDKey"] != nil else { return nil }
+        return SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+    }()
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         if AppVariant.isBackground { NSApp.setActivationPolicy(.accessory) }
@@ -20,6 +29,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 URLCommandHandler.handle(url)
             }
         }
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [updater] in updater?.startUpdater() }
+    }
+
+    @objc func checkForUpdates(_ sender: Any?) {
+        updater?.checkForUpdates(sender)
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
@@ -65,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
+        case #selector(checkForUpdates(_:)): return updater?.updater.canCheckForUpdates ?? false
         case #selector(toggleLineNumbers(_:)): menuItem.state = settings.showLineNumbers ? .on : .off
         case #selector(toggleInvisibles(_:)): menuItem.state = settings.showInvisibles ? .on : .off
         case #selector(toggleWrapLines(_:)): menuItem.state = settings.wrapLines ? .on : .off

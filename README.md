@@ -71,6 +71,7 @@ gives a type back to the app that had it before.
 | `make release`           | App, zip and DMG in `build/release`                                  |
 | `make build-notarized`   | Same, signed with your Developer ID, notarized and stapled           |
 | `make install-notarized` | Installs the notarized build                                         |
+| `make bump V=minor PUSH=1` | Tags a release; GitHub Actions builds, notarizes and publishes it (docs/releasing.md) |
 | `make grammars`          | Re-vendors the tree-sitter grammars pinned in the syntax package     |
 | `make icon`              | Redraws the app icon                                                 |
 

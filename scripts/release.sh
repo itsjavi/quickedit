@@ -21,6 +21,7 @@ elif ! security find-identity -v -p codesigning | grep -qF "$DEVELOPER_ID"; then
   exit 1
 fi
 if [ -z "${NOTARY_PROFILE:-}" ]; then missing+=("NOTARY_PROFILE (a notarytool Keychain profile)"); fi
+if [ ! -s Resources/SparklePublicKey.txt ] && [ -z "${SPARKLE_PUBLIC_KEY:-}" ]; then missing+=("Resources/SparklePublicKey.txt (Sparkle's public key: without it the app can't update itself)"); fi
 
 SIGN_IDENTITY="${DEVELOPER_ID:--}" ./scripts/build-app.sh release
 
