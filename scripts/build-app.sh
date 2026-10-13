@@ -21,9 +21,14 @@ esac
 # The Quick Look extension registers a system-wide preview provider: only the release build embeds it, unless QUICKLOOK=1.
 if [[ -z "${QUICKLOOK:-}" ]]; then QUICKLOOK=$([[ "$VARIANT" == "release" ]] && echo 1 || echo 0); fi
 
-swift build -c "$CONFIG" --product QuickEdit
-if [[ "$QUICKLOOK" == "1" ]]; then swift build -c "$CONFIG" --product QuickEditQuickLook; fi
-BIN="$(swift build -c "$CONFIG" --show-bin-path)"
+# OPTIMIZE=1 optimizes a debug (Dev/Test) build, keeping its DEBUG hooks, for performance measurements.
+SWIFT_FLAGS=(-c "$CONFIG")
+if [[ -n "${OPTIMIZE:-}" && "$CONFIG" == "debug" ]]; then
+  SWIFT_FLAGS+=(-Xswiftc -O -Xcc -O2 --scratch-path .build/optimized-debug)
+fi
+swift build "${SWIFT_FLAGS[@]}" --product QuickEdit
+if [[ "$QUICKLOOK" == "1" ]]; then swift build "${SWIFT_FLAGS[@]}" --product QuickEditQuickLook; fi
+BIN="$(swift build "${SWIFT_FLAGS[@]}" --show-bin-path)"
 APP="build/$NAME.app"
 PLIST="$APP/Contents/Info.plist"
 

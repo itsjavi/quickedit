@@ -254,16 +254,16 @@ func tagCenterline(in r: NSRect) -> NSBezierPath {
 
 /// 3. Dash page: a file whipping forward with a `</>` tag, speed streaks trailing behind it.
 func dashPage() -> Concept {
-    let pageSize = NSSize(width: unit * 0.58, height: unit * 0.74)
+    let pageSize = NSSize(width: unit * 0.60, height: unit * 0.84)
     let pageRadius = pageSize.width * 0.14
     let slant: CGFloat = 0.16
-    let tagSize = NSSize(width: unit * 0.40, height: unit * 0.28)
-    let tagStroke = unit * 0.08
-    let streakHeight = unit * 0.07
-    let streaks: [(y: CGFloat, length: CGFloat)] = [(0.70, 0.30), (0.50, 0.42), (0.30, 0.24)]  // y in page heights
+    let tagSize = NSSize(width: unit * 0.42, height: unit * 0.31)
+    let tagStroke = unit * 0.085
+    let streakHeight = unit * 0.08
+    let streaks: [(y: CGFloat, length: CGFloat)] = [(0.70, 0.32), (0.50, 0.44), (0.30, 0.26)]  // y in page heights
     let streak = ("#FFA27A", "#FF6F6A")  // coral-peach: reads on both the white and the black field
 
-    let page = NSRect(x: art.maxX - pageSize.width - unit * 0.04, y: art.midY - pageSize.height / 2,
+    let page = NSRect(x: art.maxX - pageSize.width - unit * 0.05, y: art.midY - pageSize.height / 2,
                       width: pageSize.width, height: pageSize.height)
     let tag = NSRect(x: page.midX - tagSize.width / 2, y: page.midY - tagSize.height / 2,
                      width: tagSize.width, height: tagSize.height)

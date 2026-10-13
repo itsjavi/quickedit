@@ -21,6 +21,9 @@ final class SyntaxColorizer {
 
     var isActive: Bool { highlighter != nil }
 
+    /// The live storage string: fast UTF-16 access and no copy (the highlighter keeps it and reads lazily).
+    private var liveText: NSString? { textView?.textStorage?.mutableString }
+
     /// Bumped by every reset, so a late query compilation for an older language is ignored.
     private var generation = 0
 
@@ -30,7 +33,7 @@ final class SyntaxColorizer {
         generation += 1
         highlighter = nil
         clearColors()
-        guard let textView, language.hasHighlighting, (textView.string as NSString).length <= Self.maximumLength else { return }
+        guard let text = liveText, language.hasHighlighting, text.length <= Self.maximumLength else { return }
         // Compiling a grammar's queries can take ~200 ms (Swift) the first time: do it off the main thread.
         let current = generation
         Task.detached(priority: .userInitiated) {
@@ -40,8 +43,7 @@ final class SyntaxColorizer {
     }
 
     private func start(_ language: Language, generation current: Int) {
-        guard current == generation, let textView else { return }
-        let text = textView.string as NSString
+        guard current == generation, let text = liveText else { return }
         guard text.length <= Self.maximumLength else { return }
         let highlighter = SyntaxHighlighter(language: language)
         highlighter.setText(text)
@@ -51,8 +53,7 @@ final class SyntaxColorizer {
 
     /// Call from the text storage's `didProcessEditing` for character edits.
     func textDidEdit(editedRange: NSRange, changeInLength delta: Int) {
-        guard let textView, let highlighter else { return }
-        let text = textView.string as NSString
+        guard let text = liveText, let highlighter else { return }
         guard text.length <= Self.maximumLength else {
             self.highlighter = nil
             clearColors()
@@ -96,7 +97,7 @@ final class SyntaxColorizer {
 
     func colorVisibleRange() {
         guard let textView, let layoutManager = textView.layoutManager, let highlighter, let range = visibleCharacterRange() else { return }
-        let length = (textView.string as NSString).length
+        let length = textView.textStorage?.length ?? 0
         let clamped = NSIntersectionRange(range, NSRange(location: 0, length: length))
         layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: clamped)
         for token in highlighter.tokens(in: clamped) {
@@ -108,7 +109,7 @@ final class SyntaxColorizer {
 
     private func clearColors() {
         guard let textView, let layoutManager = textView.layoutManager else { return }
-        let length = (textView.string as NSString).length
+        let length = textView.textStorage?.length ?? 0
         layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: NSRange(location: 0, length: length))
         coloredRange = NSRange(location: NSNotFound, length: 0)
     }

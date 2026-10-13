@@ -273,6 +273,12 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
   `ui/transcript?src=&text=` (inserts a transcript like the sheet's Insert)
 - `ui/indentation?style=tabs|spaces&width=[&convert=1]`, `ui/line-endings?value=lf|crlf|cr`, `ui/language?id=` (empty = detect)
 - `debug/tokens?out=&location=&length=` writes the highlighter's tokens (`"text"<TAB>kind`) for a range
+- `ui/table?value=0|1`, `ui/table-cell?row=&column=&value=` (data rows), `ui/table-select?rows=0,2`,
+  `ui/table-command?name=addRow:|insertRowAbove:|deleteSelectedRows:|addColumn:|deleteSelectedColumn:|toggleHeader:`
+- `ui/discard` (closes without saving or asking), `ui/front?value=1|0` (orders the window above others without
+  activating, so WebKit paints for captures: agreed UI sessions only)
+- `debug/editor-bench?out=&count=` types into the middle of the open file and reports per-keystroke timings; build
+  with `OPTIMIZE=1 make test-app` (optimized debug build that keeps the hooks) for meaningful numbers
 - `debug/state?out=/private/tmp/state.txt` writes a `key: value` state dump; `debug/preview?out=` dumps the preview
   page's text and computed colours; `debug/snapshot?out=` renders the editor in-process (PNG)
 

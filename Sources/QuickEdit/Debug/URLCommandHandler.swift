@@ -35,6 +35,11 @@ enum DebugHooks {
         case "ui/new":
             guard let document = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) as? TextDocument else { return }
             if let text = query["text"], let editor = document.editor { editor.textView.insertText(text, replacementRange: NSRange(location: 0, length: 0)) }
+        case "ui/discard":
+            // Closes without saving or asking (Test builds; drops autosaved untitled drafts).
+            guard let document = editor?.document else { return }
+            document.updateChangeCount(.changeCleared)
+            document.close()
         case "ui/close":
             editor?.view.window?.performClose(nil)
         case "ui/save":
@@ -96,6 +101,41 @@ enum DebugHooks {
             // addRow:, insertRowAbove:, deleteSelectedRows:, addColumn:, deleteSelectedColumn:, toggleHeader:
             guard let name = query["name"], let table = editor?.tableController else { return }
             _ = table.perform(Selector(name), with: nil)
+        case "ui/front":
+            // Agreed UI sessions only: shows the window above others (no activation) so WebKit paints for captures.
+            guard let window = editor?.view.window else { return }
+            if query["value"] == "0" { window.orderBack(nil) } else { window.orderFrontRegardless() }
+        case "debug/editor-bench":
+            // Types `count` characters one by one into the middle of the open file, laying out and recolouring
+            // the visible range after each, and writes per-keystroke timings.
+            guard let path = safePath(query["out"]), let editor else { return }
+            let count = Int(query["count"] ?? "") ?? 200
+            let textView = editor.textView!
+            let middle = (textView.string as NSString).length / 2
+            textView.setSelectedRange(NSRange(location: middle, length: 0))
+            textView.scrollRangeToVisible(textView.selectedRange())
+            var phases: [[Double]] = [[], [], [], []]
+            func now() -> UInt64 { DispatchTime.now().uptimeNanoseconds }
+            for index in 0..<count {
+                let t0 = now()
+                textView.insertText(index % 20 == 19 ? "\n" : "x", replacementRange: textView.selectedRange())
+                let t1 = now()
+                if let layoutManager = textView.layoutManager, let container = textView.textContainer {
+                    layoutManager.ensureLayout(forBoundingRect: textView.visibleRect, in: container)
+                }
+                let t2 = now()
+                editor.colorizer.colorVisibleRange()
+                let t3 = now()
+                textView.displayIfNeeded()
+                let t4 = now()
+                for (phase, (a, b)) in [(t0, t1), (t1, t2), (t2, t3), (t3, t4)].enumerated() { phases[phase].append(Double(b - a) / 1_000_000) }
+            }
+            let totals = (0..<count).map { i in phases.reduce(0) { $0 + $1[i] } }.sorted()
+            func median(_ values: [Double]) -> Double { values.sorted()[values.count / 2] }
+            let report = String(format: "keystrokes: %d\nmedian: %.2f ms\np95: %.2f ms\nmax: %.2f ms\ninsert+parse: %.2f\nlayout: %.2f\ncolor: %.2f\ndisplay: %.2f\nlength: %d\n", count,
+                                totals[totals.count / 2], totals[Int(Double(totals.count) * 0.95)], totals.last ?? 0,
+                                median(phases[0]), median(phases[1]), median(phases[2]), median(phases[3]), (textView.string as NSString).length)
+            try? report.write(toFile: path, atomically: true, encoding: .utf8)
         case "ui/language":
             editor?.setLanguage(id: query["id"].flatMap { $0.isEmpty ? nil : $0 })
         case "debug/tokens":
@@ -216,6 +256,7 @@ enum DebugHooks {
             let state = editor.document.state
             let prefix = "doc\(index)"
             lines.append("\(prefix).path: \(editor.document.fileURL?.path ?? "untitled")")
+            lines.append("\(prefix).window: \(editor.view.window.map { "\($0.frame) screen=\($0.screen?.visibleFrame ?? .zero)" } ?? "-")")
             lines.append("\(prefix).edited: \(editor.document.isDocumentEdited)")
             lines.append("\(prefix).position: \(state.line):\(state.column) selected=\(state.selectionLength) lines=\(state.lineCount)")
             lines.append("\(prefix).language: \(state.languageName)")

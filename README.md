@@ -2,7 +2,11 @@
 
 A native macOS code viewer and editor for small, quick edits: a modern TextEdit, a lighter Sublime Text. Not an IDE.
 
-<!-- screenshots -->
+| Light                                                       | Dark                                                      |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| ![TypeScript in the editor](docs/screenshots/editor-light.png) | ![TypeScript in dark mode](docs/screenshots/editor-dark.png) |
+| ![Markdown with split preview](docs/screenshots/preview-light.png) | ![Markdown split preview, dark](docs/screenshots/preview-dark.png) |
+| ![CSV in Table mode](docs/screenshots/table-light.png)      | ![CSV Table mode, dark](docs/screenshots/table-dark.png)  |
 
 ## Features
 
