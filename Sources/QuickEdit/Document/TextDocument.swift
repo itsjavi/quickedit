@@ -18,6 +18,18 @@ final class TextDocument: NSDocument {
 
     nonisolated override class var autosavesInPlace: Bool { AppSettings.autosavesInPlaceThisLaunch }
 
+    /// Save As, Rename and Move can change the language and preview (e.g. Untitled → notes.md).
+    nonisolated override var fileURL: URL? {
+        didSet {
+            guard oldValue?.lastPathComponent != fileURL?.lastPathComponent else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    if self.editor?.isViewLoaded == true { self.editor?.updateLanguage() }
+                }
+            }
+        }
+    }
+
     // MARK: Reading
 
     /// The file being read (NSDocument sets `fileURL` only after reading), for `.editorconfig` lookup.

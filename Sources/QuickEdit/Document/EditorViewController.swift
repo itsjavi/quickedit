@@ -1,4 +1,5 @@
 import AppKit
+import QuickEditSyntax
 import QuickEditCore
 import SwiftUI
 
@@ -12,6 +13,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     private var splitView: NSSplitView!
     private var previewHost: NSView?
     let preview = PreviewModel()
+    private(set) var colorizer: SyntaxColorizer!
     let lineIndex = LineIndex()
     private var settings: AppSettings { .shared }
     var state: EditorState { document.state }
@@ -60,6 +62,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         textView.delegate = self
         self.textView = textView
+        colorizer = SyntaxColorizer(textView: textView, language: LanguageRegistry.plainText)
 
         let scrollView = NSScrollView()
         scrollView.borderType = .noBorder
@@ -110,8 +113,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     /// Sets up the preview for Markdown and HTML files (after loading, saving under a new name, or a language change).
     func updatePreviewKind() {
-        let name = document.fileURL?.lastPathComponent ?? document.displayName ?? ""
-        let kind = PreviewKind.forFile(named: name)
+        let kind: PreviewKind? = switch colorizer.language.id {
+        case "markdown": .markdown
+        case "html": .html
+        default: nil
+        }
         let changed = kind != state.previewKind
         state.previewKind = kind
         if let kind {
@@ -163,6 +169,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     private var isPreviewVisible: Bool { state.previewKind != nil && state.mode != .edit }
 
     @objc private func editorDidScroll() {
+        colorizer.visibleRangeDidChange()
         guard isPreviewVisible, state.mode == .split, state.previewKind == .markdown,
               let layoutManager = textView.layoutManager, let container = textView.textContainer else { return }
         let visible = textView.visibleRect
@@ -258,6 +265,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     }
 
     @objc private func scrollViewDidResize() {
+        colorizer.visibleRangeDidChange()
         guard !settings.wrapLines else { return }
         // Without wrapping, the text view is at least as wide as the visible area (background, current line).
         textView.minSize = NSSize(width: scrollView.contentSize.width, height: scrollView.contentSize.height)
@@ -290,7 +298,32 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         }
         updatePosition()
         updateRiskyCount()
+        updateLanguage()
+    }
+
+    // MARK: Language
+
+    /// Detects the language from the file name (and a `#!` line) unless the user picked one, then re-highlights.
+    func updateLanguage() {
+        let text = textView.string as NSString
+        let firstLine = text.substring(with: text.lineRange(for: NSRange(location: 0, length: 0)))
+        let name = document.fileURL?.lastPathComponent ?? document.displayName ?? ""
+        let language = state.languageOverride.flatMap(LanguageRegistry.language(id:))
+            ?? LanguageRegistry.detect(fileName: name, firstLine: firstLine)
+        state.languageName = language.displayName
+        textView.commentStyle = CommentStyle(line: language.lineComment, block: language.blockComment.map { ($0.open, $0.close) })
+        // Makefiles need tabs: without a file or .editorconfig say, the language's preference wins over Settings.
+        if state.indentationSource == .settings, language.prefersTabs, state.indentation.style != .tabs {
+            state.indentation = Indentation(style: .tabs, width: state.indentation.width)
+            textView.indentation = state.indentation
+        }
+        colorizer.reset(language: language)
         updatePreviewKind()
+    }
+
+    func setLanguage(id: String?) {
+        state.languageOverride = id
+        updateLanguage()
     }
 
     // MARK: Text events
@@ -299,6 +332,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         guard editedMask.contains(.editedCharacters) else { return }
         MainActor.assumeIsolated {
             lineIndex.invalidate()
+            colorizer.textDidEdit(editedRange: editedRange, changeInLength: delta)
             // Not during the storage's edit processing: the ruler may widen, which changes layout.
             DispatchQueue.main.async { [weak self] in
                 MainActor.assumeIsolated {

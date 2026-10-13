@@ -17,6 +17,8 @@ enum IndentationSource: String {
     var selectionLength = 0
     var lineCount = 1
     var languageName = "Plain Text"
+    /// Set when the user picked the language in the status bar; otherwise it follows the file name.
+    var languageOverride: String?
     var indentation = Indentation(style: .spaces, width: 4)
     var indentationSource = IndentationSource.settings
     var encoding = TextEncoding.utf8

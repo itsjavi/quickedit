@@ -271,7 +271,8 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
 - `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|font-size&value=`
 - `ui/voice-start?seconds=|from=` (recorder with the microphone replaced by a tone or clip), `ui/voice-stop`, `ui/voice-cancel`,
   `ui/transcript?src=&text=` (inserts a transcript like the sheet's Insert)
-- `ui/indentation?style=tabs|spaces&width=[&convert=1]`, `ui/line-endings?value=lf|crlf|cr`
+- `ui/indentation?style=tabs|spaces&width=[&convert=1]`, `ui/line-endings?value=lf|crlf|cr`, `ui/language?id=` (empty = detect)
+- `debug/tokens?out=&location=&length=` writes the highlighter's tokens (`"text"<TAB>kind`) for a range
 - `debug/state?out=/private/tmp/state.txt` writes a `key: value` state dump; `debug/preview?out=` dumps the preview
   page's text and computed colours; `debug/snapshot?out=` renders the editor in-process (PNG)
 
@@ -294,6 +295,8 @@ The user keeps working while agents run, so verification must never steal focus,
   `make run`), unless the user said yes in chat to that specific check. Ask first, saying what you'd click and why
   hooks can't cover it.
 - Don't run `qlmanage -p` or anything else that opens a Quick Look panel.
+- Even the Test build has interrupted the user's work (2026-10-13): batch Test-build sessions, keep them short, kill
+  the app afterwards, and skip them while the user is working unless they agree; prefer unit tests and builds.
 - When behavior needs a real click (context menus, drags, shortcuts), prefer a DEBUG hook that exercises the same code
   path in-process. Otherwise list the check in the task notes and the final message for the user to do.
 - The orchestrator repeats this rule in every worker brief.

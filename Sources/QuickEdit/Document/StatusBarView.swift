@@ -1,4 +1,5 @@
 import QuickEditCore
+import QuickEditSyntax
 import SwiftUI
 
 /// The bar under the editor: caret position and warnings on the left; language, indentation, encoding and line
@@ -43,6 +44,7 @@ struct StatusBarView: View {
             if state.previewKind != nil {
                 previewControls
             }
+            languageMenu
             indentationMenu
             encodingMenu
             lineEndingMenu
@@ -90,6 +92,30 @@ struct StatusBarView: View {
         .controlSize(.mini)
         .fixedSize()
         .help("Editor, split or preview (⌘1, ⌘2, ⌘3)")
+    }
+
+    private static let languages = LanguageRegistry.all.sorted { lhs, rhs in
+        lhs.id == "plaintext" || (rhs.id != "plaintext" && lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending)
+    }
+
+    private var languageMenu: some View {
+        Menu {
+            Toggle("Detect from File Name", isOn: Binding(
+                get: { state.languageOverride == nil },
+                set: { if $0 { controller?.setLanguage(id: nil) } }
+            ))
+            Divider()
+            ForEach(Self.languages) { language in
+                Toggle(language.displayName, isOn: Binding(
+                    get: { state.languageName == language.displayName },
+                    set: { _ in controller?.setLanguage(id: language.id) }
+                ))
+            }
+        } label: {
+            Text(state.languageName)
+        }
+        .fixedSize()
+        .help("Syntax highlighting language for this file")
     }
 
     private var indentationMenu: some View {

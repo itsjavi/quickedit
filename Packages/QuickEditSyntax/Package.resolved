@@ -1,0 +1,24 @@
+{
+  "originHash" : "3b8eb79d05eb89d93e8dbc1bd1336c3658eb0bbebfc089e2c42bd898a784e920",
+  "pins" : [
+    {
+      "identity" : "swifttreesitter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/SwiftTreeSitter",
+      "state" : {
+        "revision" : "f97df585296977d8fcaf644cbde567151d1367b8",
+        "version" : "0.10.0"
+      }
+    },
+    {
+      "identity" : "tree-sitter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter/tree-sitter",
+      "state" : {
+        "revision" : "da6fe9beb4f7f67beb75914ca8e0d48ae48d6406",
+        "version" : "0.25.10"
+      }
+    }
+  ],
+  "version" : 3
+}

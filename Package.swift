@@ -10,6 +10,8 @@ let package = Package(
     dependencies: [
         // cmark-gfm: GitHub's Markdown engine (tables, task lists, autolinks, tagfilter).
         .package(url: "https://github.com/swiftlang/swift-cmark.git", from: "0.9.0"),
+        // Language registry, vendored tree-sitter grammars and the highlighter (decision-2).
+        .package(path: "Packages/QuickEditSyntax"),
     ],
     targets: [
         .target(
@@ -22,7 +24,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "QuickEdit",
-            dependencies: ["QuickEditCore"],
+            dependencies: ["QuickEditCore", .product(name: "QuickEditSyntax", package: "QuickEditSyntax")],
             path: "Sources/QuickEdit",
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
@@ -36,7 +38,7 @@ let package = Package(
         ),
         .testTarget(
             name: "QuickEditCoreTests",
-            dependencies: ["QuickEditCore"],
+            dependencies: ["QuickEditCore", .product(name: "QuickEditSyntax", package: "QuickEditSyntax")],
             path: "Tests/QuickEditCoreTests"
         ),
     ]

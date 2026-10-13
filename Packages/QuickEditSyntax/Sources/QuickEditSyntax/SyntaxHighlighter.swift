@@ -1,0 +1,211 @@
+import Foundation
+
+/// Highlights one document. Feed it the text with `setText(_:)`, report every change with
+/// `applyEdit(replacing:with:in:)` (it reparses incrementally) and ask for the tokens of the visible range.
+///
+/// All offsets are UTF-16 (`NSString`) offsets. The highlighter keeps a reference to the last text it was given
+/// and reads from it lazily (tree-sitter reads chunks), so call `applyEdit` right after each change and before
+/// the next `tokens(in:)`. Not thread-safe: use one highlighter from one thread (the main thread in the app).
+public final class SyntaxHighlighter {
+    public let language: Language
+    private let engine: any HighlightEngine
+    /// The most recently requested ranges and their tokens (latest last). Edits re-highlight them to report exact
+    /// changes there, and a repeated request for the same range is answered from here.
+    private var recent: [(range: NSRange, tokens: [SyntaxToken])] = []
+    private static let recentLimit = 2
+    private static let recentMaximumLength = 64 * 1024
+
+    public init(language: Language) {
+        self.language = language
+        switch language.highlighting {
+        case .none:
+            engine = PlainTextEngine()
+        case .delimited(let delimiter):
+            engine = DelimitedEngine(delimiter: delimiter)
+        case .grammar(let name):
+            if let grammar = GrammarStore.configuration(named: name) {
+                engine = TreeSitterEngine(grammar: grammar)
+            } else {
+                engine = PlainTextEngine()
+            }
+        }
+    }
+
+    /// Replaces the whole text and parses it from scratch.
+    public func setText(_ text: NSString) {
+        recent.removeAll()
+        engine.setText(text)
+    }
+
+    /// Reports that `oldRange` (in the previous text) was replaced by `replacementLength` UTF-16 units, giving
+    /// `newText`. Reparses incrementally and returns the sorted, merged ranges of `newText` whose tokens may have
+    /// changed: the edited lines, tree-sitter's changed ranges and touched injections, plus the exact differences
+    /// within the ranges requested recently (the visible range), which catch context-dependent query matches
+    /// tree-sitter's changed ranges miss.
+    @discardableResult
+    public func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange] {
+        var changed = engine.applyEdit(replacing: oldRange, with: replacementLength, in: newText)
+        let inserted = NSRange(location: oldRange.location, length: replacementLength)
+        if !engine.isPlainText {
+            changed.append(inserted)
+        }
+        let previous = recent
+        recent.removeAll()
+        let all = NSRange(location: 0, length: newText.length)
+        for (range, oldTokens) in previous {
+            guard let mapped = Self.map(range, replacing: oldRange, with: replacementLength).clipped(to: all) else {
+                continue
+            }
+            let newTokens = engine.tokens(in: mapped)
+            changed += Self.differences(
+                old: oldTokens.flatMap { Self.map($0, replacing: oldRange, with: replacementLength) },
+                new: newTokens, in: mapped)
+            remember(mapped, newTokens)
+        }
+        return normalized(changed.compactMap { $0.clipped(to: all) })
+    }
+
+    /// Tokens intersecting `range`, clipped to it, sorted by location and non-overlapping (the innermost
+    /// capture wins; for the same node the last query pattern wins, as in tree-sitter's highlighter).
+    public func tokens(in range: NSRange) -> [SyntaxToken] {
+        if let index = recent.firstIndex(where: { $0.range == range }) {
+            let entry = recent.remove(at: index)
+            recent.append(entry)
+            return entry.tokens
+        }
+        let tokens = engine.tokens(in: range)
+        remember(range, tokens)
+        return tokens
+    }
+
+    /// Compiles the queries of `language`'s grammar ahead of time so the first `SyntaxHighlighter` doesn't pay
+    /// for it. Thread-safe; call it from a background task.
+    public static func prepare(_ language: Language) {
+        guard case .grammar(let name) = language.highlighting else { return }
+        _ = GrammarStore.configuration(named: name)
+    }
+
+    // MARK: - Recent ranges
+
+    private func remember(_ range: NSRange, _ tokens: [SyntaxToken]) {
+        guard range.length > 0, range.length <= Self.recentMaximumLength, !engine.isPlainText else { return }
+        recent.removeAll { $0.range == range }
+        recent.append((range, tokens))
+        if recent.count > Self.recentLimit {
+            recent.removeFirst(recent.count - Self.recentLimit)
+        }
+    }
+
+    /// `range` in the new text after `oldRange` was replaced by `length` units; ranges touching the edit grow to
+    /// cover the replacement.
+    static func map(_ range: NSRange, replacing oldRange: NSRange, with length: Int) -> NSRange {
+        let delta = length - oldRange.length
+        if range.upperBound < oldRange.location {
+            return range
+        }
+        if range.location > oldRange.upperBound {
+            return NSRange(location: range.location + delta, length: range.length)
+        }
+        let start = min(range.location, oldRange.location)
+        let end = max(range.upperBound + delta, oldRange.location + length, start)
+        return NSRange(location: start, length: end - start)
+    }
+
+    /// The parts of an old token outside the edit, in new coordinates.
+    static func map(_ token: SyntaxToken, replacing oldRange: NSRange, with length: Int) -> [SyntaxToken] {
+        let delta = length - oldRange.length
+        let range = token.range
+        var parts: [SyntaxToken] = []
+        if range.location < oldRange.location {
+            let end = min(range.upperBound, oldRange.location)
+            parts.append(SyntaxToken(range: NSRange(location: range.location, length: end - range.location), kind: token.kind))
+        }
+        if range.upperBound > oldRange.upperBound {
+            let start = max(range.location, oldRange.upperBound)
+            parts.append(
+                SyntaxToken(range: NSRange(location: start + delta, length: range.upperBound - start), kind: token.kind))
+        }
+        return parts
+    }
+
+    /// Ranges within `range` where the kinds of `old` and `new` differ.
+    static func differences(old: [SyntaxToken], new: [SyntaxToken], in range: NSRange) -> [NSRange] {
+        var oldKinds = [TokenKind?](repeating: nil, count: range.length)
+        var newKinds = [TokenKind?](repeating: nil, count: range.length)
+        func paint(_ tokens: [SyntaxToken], into kinds: inout [TokenKind?]) {
+            for token in tokens {
+                guard let clipped = token.range.clipped(to: range) else { continue }
+                for index in (clipped.location - range.location)..<(clipped.upperBound - range.location) {
+                    kinds[index] = token.kind
+                }
+            }
+        }
+        paint(old, into: &oldKinds)
+        paint(new, into: &newKinds)
+        var result: [NSRange] = []
+        var runStart: Int?
+        for index in 0...range.length {
+            let differs = index < range.length && oldKinds[index] != newKinds[index]
+            if differs, runStart == nil {
+                runStart = index
+            } else if !differs, let start = runStart {
+                result.append(NSRange(location: range.location + start, length: index - start))
+                runStart = nil
+            }
+        }
+        return result
+    }
+}
+
+@available(*, unavailable)
+extension SyntaxHighlighter: Sendable {}
+
+protocol HighlightEngine: AnyObject {
+    /// Plain text never has tokens, so there's nothing to track or report.
+    var isPlainText: Bool { get }
+    func setText(_ text: NSString)
+    func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange]
+    func tokens(in range: NSRange) -> [SyntaxToken]
+}
+
+final class PlainTextEngine: HighlightEngine {
+    var isPlainText: Bool { true }
+
+    func setText(_ text: NSString) {}
+
+    func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange] {
+        []
+    }
+
+    func tokens(in range: NSRange) -> [SyntaxToken] {
+        []
+    }
+}
+
+extension NSRange {
+    /// The intersection, or nil when the ranges don't overlap (touching empty ranges count as not overlapping).
+    func clipped(to other: NSRange) -> NSRange? {
+        let start = Swift.max(location, other.location)
+        let end = Swift.min(upperBound, other.upperBound)
+        return start < end ? NSRange(location: start, length: end - start) : nil
+    }
+}
+
+/// Sorts and merges overlapping or adjacent ranges.
+func normalized(_ ranges: [NSRange]) -> [NSRange] {
+    let sorted = ranges.filter { $0.length > 0 }.sorted { $0.location < $1.location }
+    var result: [NSRange] = []
+    for range in sorted {
+        if let last = result.last, range.location <= last.upperBound {
+            result[result.count - 1] = NSRange(
+                location: last.location, length: Swift.max(last.upperBound, range.upperBound) - last.location)
+        } else {
+            result.append(range)
+        }
+    }
+    return result
+}
+
+extension HighlightEngine {
+    var isPlainText: Bool { false }
+}

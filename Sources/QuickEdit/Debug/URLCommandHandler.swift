@@ -84,6 +84,16 @@ enum DebugHooks {
         case "ui/transcript":
             // Inserts a transcript as the sheet's Insert would (no speech model needed).
             if let source = query["src"] { editor?.insertTranscript(query["text"] ?? "", forSource: source) }
+        case "ui/language":
+            editor?.setLanguage(id: query["id"].flatMap { $0.isEmpty ? nil : $0 })
+        case "debug/tokens":
+            // Token kinds of a range, one "text<TAB>kind" per token.
+            guard let path = safePath(query["out"]), let editor else { return }
+            let text = editor.textView.string as NSString
+            let location = min(Int(query["location"] ?? "") ?? 0, text.length)
+            let range = NSRange(location: location, length: min(Int(query["length"] ?? "") ?? text.length, text.length - location))
+            let lines = editor.colorizer.tokens(in: range).map { "\(text.substring(with: $0.range).debugDescription)\t\($0.kind)" }
+            try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
         case "ui/indentation":
             guard let editor else { return }
             let style: IndentStyle = query["style"] == "tabs" ? .tabs : .spaces
