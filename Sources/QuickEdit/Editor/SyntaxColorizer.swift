@@ -114,6 +114,12 @@ final class SyntaxColorizer {
         coloredRange = NSRange(location: NSNotFound, length: 0)
     }
 
+    /// Foldable regions as the character ranges they hide (empty for languages without folding).
+    func foldRegions() -> [NSRange] {
+        // TODO(TASK-19): highlighter?.foldRanges().map(\.hidden) once the syntax package has the API.
+        []
+    }
+
     /// Tokens of a range (Test-build hooks).
     func tokens(in range: NSRange) -> [SyntaxToken] {
         highlighter?.tokens(in: range) ?? []

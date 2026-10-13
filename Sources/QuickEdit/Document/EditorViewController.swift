@@ -9,10 +9,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     private(set) var textView: EditorTextView!
     private(set) var scrollView: NSScrollView!
     private var layoutManager: EditorLayoutManager!
-    private var ruler: LineNumberRulerView?
+    private(set) var ruler: LineNumberRulerView?
     private var splitView: NSSplitView!
     private var previewHost: NSView?
     private(set) var tableController: TableEditorViewController?
+    var editorLayoutManager: EditorLayoutManager { layoutManager }
     let preview = PreviewModel()
     private(set) var colorizer: SyntaxColorizer!
     let lineIndex = LineIndex()
@@ -222,6 +223,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let modes: [Selector: EditorMode] = [#selector(showEditorOnly(_:)): .edit, #selector(showSplit(_:)): .split, #selector(showPreviewOnly(_:)): .preview]
+        if let action = menuItem.action, [#selector(fold(_:)), #selector(unfold(_:)), #selector(foldAll(_:)), #selector(unfoldAll(_:))].contains(action) {
+            return validateFoldingItem(menuItem)
+        }
         if menuItem.action == #selector(toggleTable(_:)) {
             menuItem.state = state.showsTable ? .on : .off
             return state.isTableAvailable
@@ -321,6 +325,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         if show {
             if ruler == nil {
                 ruler = LineNumberRulerView(textView: textView, scrollView: scrollView, lineIndex: lineIndex)
+                ruler?.editor = self
                 scrollView.verticalRulerView = ruler
             }
             scrollView.hasVerticalRuler = true
@@ -343,6 +348,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         }
         updatePosition()
         updateRiskyCount()
+        layoutManager.setFoldedRanges([])
         updateLanguage()
     }
 
@@ -393,6 +399,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         MainActor.assumeIsolated {
             lineIndex.invalidate()
             colorizer.textDidEdit(editedRange: editedRange, changeInLength: delta)
+            adjustFolds(editedRange: editedRange, changeInLength: delta)
             if state.showsTable { tableController?.textDidChange() }
             // Not during the storage's edit processing: the ruler may widen, which changes layout.
             DispatchQueue.main.async { [weak self] in

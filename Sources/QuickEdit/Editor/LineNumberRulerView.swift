@@ -6,6 +6,10 @@ final class LineNumberRulerView: NSRulerView {
     private weak var textView: EditorTextView?
     private let lineIndex: LineIndex
     private var digits = 0
+    /// Supplies fold markers and toggles folds (the window's editor).
+    weak var editor: EditorViewController?
+    /// Width of the fold-arrow column at the gutter's right edge.
+    private static let foldColumn: CGFloat = 14
 
     init(textView: EditorTextView, scrollView: NSScrollView, lineIndex: LineIndex) {
         self.textView = textView
@@ -50,11 +54,43 @@ final class LineNumberRulerView: NSRulerView {
         let count = lineIndex.lineCount(in: textView.string as NSString)
         let newDigits = max(3, String(count).count)
         let digitWidth = ("8" as NSString).size(withAttributes: [.font: numberFont]).width
-        let thickness = (CGFloat(newDigits) * digitWidth + 22).rounded()
+        let thickness = (CGFloat(newDigits) * digitWidth + 22 + Self.foldColumn).rounded()
         if newDigits != digits || abs(ruleThickness - thickness) > 0.5 {
             digits = newDigits
             ruleThickness = thickness
         }
+    }
+
+    private func drawFoldArrow(folded: Bool, baseline: CGFloat, font: NSFont) {
+        let size: CGFloat = 7
+        let centerX = ruleThickness - Self.foldColumn / 2 - 4
+        let centerY = baseline - font.xHeight / 2
+        let path = NSBezierPath()
+        if folded {
+            path.move(to: NSPoint(x: centerX - size / 3, y: centerY - size / 2))
+            path.line(to: NSPoint(x: centerX + size / 2, y: centerY))
+            path.line(to: NSPoint(x: centerX - size / 3, y: centerY + size / 2))
+        } else {
+            path.move(to: NSPoint(x: centerX - size / 2, y: centerY - size / 3))
+            path.line(to: NSPoint(x: centerX + size / 2, y: centerY - size / 3))
+            path.line(to: NSPoint(x: centerX, y: centerY + size / 2))
+        }
+        path.close()
+        (folded ? NSColor.secondaryLabelColor : NSColor.tertiaryLabelColor).setFill()
+        path.fill()
+    }
+
+    /// A click in the fold column toggles the fold that starts on that line.
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        guard point.x >= ruleThickness - Self.foldColumn - 6, let editor, let textView,
+              let layoutManager = textView.layoutManager, let container = textView.textContainer
+        else { return super.mouseDown(with: event) }
+        let inText = textView.convert(point, from: self)
+        let glyph = layoutManager.glyphIndex(for: NSPoint(x: 0, y: inText.y - textView.textContainerOrigin.y), in: container)
+        let character = layoutManager.characterIndexForGlyph(at: glyph)
+        let line = lineIndex.line(of: character, in: textView.string as NSString)
+        if editor.foldMarkers()[line] != nil { editor.toggleFold(atLine: line) } else { super.mouseDown(with: event) }
     }
 
     override func drawHashMarksAndLabels(in dirtyRect: NSRect) {
@@ -70,7 +106,8 @@ final class LineNumberRulerView: NSRulerView {
         let currentLine = lineIndex.line(of: textView.selectedRange().location, in: text)
         let font = numberFont
         let yOffset = convert(NSPoint.zero, from: textView).y + textView.textContainerOrigin.y
-        let right = ruleThickness - 10
+        let right = ruleThickness - 10 - Self.foldColumn
+        let markers = editor?.foldMarkers() ?? [:]
 
         func drawNumber(_ line: Int, baseline: CGFloat) {
             let attributes: [NSAttributedString.Key: Any] = [
@@ -80,6 +117,9 @@ final class LineNumberRulerView: NSRulerView {
             let label = String(line + 1) as NSString
             let width = label.size(withAttributes: attributes).width
             label.draw(at: NSPoint(x: right - width, y: baseline - font.ascender), withAttributes: attributes)
+            if let isFolded = markers[line] {
+                drawFoldArrow(folded: isFolded, baseline: baseline, font: font)
+            }
         }
 
         let visible = textView.visibleRect

@@ -123,6 +123,9 @@ enum DebugHooks {
             lines.append("dryRun: \(associations.dryRunChanges.joined(separator: "; "))")
             lines.append("result: \(associations.lastResult ?? "-")")
             try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        case "ui/fold-line":
+            // Same path as clicking the gutter arrow on a 1-based line.
+            if let line = Int(query["line"] ?? "") { editor?.toggleFold(atLine: line - 1) }
         case "ui/front":
             // Agreed UI sessions only: shows the window above others (no activation) so WebKit paints for captures.
             guard let window = editor?.view.window else { return }
@@ -290,6 +293,7 @@ enum DebugHooks {
             if let table = editor.tableController, state.showsTable {
                 lines.append("\(prefix).table: rows=\(table.rowCount) columns=\(table.columnCount) header=\(table.firstRowIsHeader)")
             }
+            lines.append("\(prefix).folds: regions=\(editor.foldableRegions.count) folded=\(editor.editorLayoutManager.foldedRanges.map { "\($0.location)+\($0.length)" }) markers=\(editor.foldMarkers().sorted { $0.key < $1.key }.map { "\($0.key + 1)\($0.value ? "▸" : "▾")" })")
             lines.append("\(prefix).voice: recording=\(state.voiceRecorder.isRecording) transcribe=\(state.transcribeSource ?? "-")")
             lines.append("\(prefix).preview: \(state.previewKind.map { "\($0)" } ?? "none") mode=\(state.mode.rawValue) remote=\(state.allowsRemoteContent)")
             lines.append("\(prefix).undo: \(editor.document.undoManager?.undoActionName ?? "")")

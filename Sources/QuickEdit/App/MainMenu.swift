@@ -124,6 +124,13 @@ enum MainMenu {
         menu.addItem(item("Preview", #selector(EditorViewController.showPreviewOnly(_:)), "3"))
         menu.addItem(item("Table", #selector(EditorViewController.toggleTable(_:)), "t", [.command, .option]))
         menu.addItem(.separator())
+        let folding = NSMenu(title: "Folding")
+        folding.addItem(item("Fold", #selector(EditorViewController.fold(_:)), arrow(NSLeftArrowFunctionKey), [.command, .option]))
+        folding.addItem(item("Unfold", #selector(EditorViewController.unfold(_:)), arrow(NSRightArrowFunctionKey), [.command, .option]))
+        folding.addItem(item("Fold All", #selector(EditorViewController.foldAll(_:)), arrow(NSLeftArrowFunctionKey), [.command, .option, .shift]))
+        folding.addItem(item("Unfold All", #selector(EditorViewController.unfoldAll(_:)), arrow(NSRightArrowFunctionKey), [.command, .option, .shift]))
+        menu.addItem(submenu(folding, title: "Folding"))
+        menu.addItem(.separator())
         let appearance = NSMenu(title: "Appearance")
         for mode in AppearanceMode.allCases {
             let entry = item(mode.title, #selector(AppDelegate.setAppearanceMode(_:)))
