@@ -31,6 +31,7 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
 
     override func loadView() {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
+        column.resizingMask = .autoresizingMask
         outlineView.addTableColumn(column)
         outlineView.outlineTableColumn = column
         outlineView.headerView = nil
@@ -47,7 +48,8 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
         menu.delegate = self
         outlineView.menu = menu
 
-        let scrollView = NSScrollView()
+        // The first width of the sidebar, until the user resizes it (the split view remembers that).
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 230, height: 600))
         scrollView.documentView = outlineView
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
@@ -60,6 +62,12 @@ final class FolderSidebarViewController: NSViewController, NSOutlineViewDataSour
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+
+    /// The only column fills the sidebar, so names use all of its width (not the column's default 100 pt).
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        outlineView.sizeLastColumnToFit()
     }
 
     // MARK: Data

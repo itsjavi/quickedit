@@ -295,7 +295,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     private func applyWrap(_ wrap: Bool) {
         guard let container = textView.textContainer else { return }
-        let contentSize = scrollView.contentSize
+        let contentSize = NSSize(width: textAreaWidth, height: scrollView.contentSize.height)
         if wrap {
             scrollView.hasHorizontalScroller = false
             textView.isHorizontallyResizable = false
@@ -317,8 +317,15 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         colorizer.visibleRangeDidChange()
         guard !settings.wrapLines else { return }
         // Without wrapping, the text view is at least as wide as the visible area (background, current line).
-        textView.minSize = NSSize(width: scrollView.contentSize.width, height: scrollView.contentSize.height)
+        textView.minSize = NSSize(width: textAreaWidth, height: scrollView.contentSize.height)
         textView.sizeToFit()
+    }
+
+    /// The width the text can use. The line-number ruler floats over the clip view, which insets its content by the
+    /// ruler's width, so the scroll view's content width alone would put the end of wrapped lines under nothing.
+    private var textAreaWidth: CGFloat {
+        let clip = scrollView.contentView
+        return max(clip.bounds.width - clip.contentInsets.left - clip.contentInsets.right, 0)
     }
 
     private func applyLineNumbers(_ show: Bool) {
