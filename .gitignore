@@ -1,0 +1,33 @@
+# Python / uv
+__pycache__/
+*.pyc
+.venv/
+
+# Agent coordination and state files
+backlog/
+.local/
+
+# Output directories
+dist/
+build/
+out/
+artifacts/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# packages and others
+node_modules/
+.pnpm-store/
+
+# design systems
+.ds-sync/
+
+
+# SwiftPM
+.build/
+.swiftpm/
+.claude/worktrees
