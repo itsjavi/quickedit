@@ -50,8 +50,9 @@ Requires macOS 26 on Apple silicon.
 make install
 ```
 
-builds the release app and copies it to `/Applications`. To open a file type with QuickEdit by default, use Finder's
-Get Info › Open with › Change All.
+builds the release app and copies it to `/Applications`. To open file types with QuickEdit by default, use
+QuickEdit › Make QuickEdit the Default Editor… (Settings › File Types): check the types you want and Apply; unchecking
+gives a type back to the app that had it before.
 
 ## Develop
 

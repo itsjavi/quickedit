@@ -30,6 +30,7 @@ enum MainMenu {
         menu.addItem(item("About \(name)", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Settings…", #selector(AppDelegate.showSettings(_:)), ","))
+        menu.addItem(item("Make \(name) the Default Editor…", #selector(AppDelegate.showFileTypes(_:))))
         menu.addItem(.separator())
         let services = NSMenu(title: "Services")
         menu.addItem(submenu(services, title: "Services"))

@@ -101,6 +101,28 @@ enum DebugHooks {
             // addRow:, insertRowAbove:, deleteSelectedRows:, addColumn:, deleteSelectedColumn:, toggleHeader:
             guard let name = query["name"], let table = editor?.tableController else { return }
             _ = table.perform(Selector(name), with: nil)
+        case "ui/settings":
+            SettingsNavigation.shared.tab = query["tab"] == "filetypes" ? .fileTypes : .general
+            (NSApp.delegate as? AppDelegate)?.showSettings(nil)
+        case "ui/file-types":
+            // check=all|none|<uti,uti>; apply=1 runs Apply (a dry run in the Test build).
+            let associations = SettingsNavigation.shared.associations
+            associations.reload()
+            switch query["check"] {
+            case "all": associations.setAll(true)
+            case "none": associations.setAll(false)
+            case let ids?: for id in ids.split(separator: ",") { associations.setChecked(true, for: String(id)) }
+            case nil: break
+            }
+            if query["apply"] == "1" { Task { await associations.apply() } }
+        case "debug/file-types":
+            guard let path = safePath(query["out"]) else { return }
+            let associations = SettingsNavigation.shared.associations
+            if associations.rows.isEmpty { associations.reload() }
+            var lines = associations.rows.map { "\($0.language)\t\($0.id)\t.\($0.extensions.joined(separator: " ."))\t\($0.currentApp?.lastPathComponent ?? "-")\tchecked=\($0.isChecked)" }
+            lines.append("dryRun: \(associations.dryRunChanges.joined(separator: "; "))")
+            lines.append("result: \(associations.lastResult ?? "-")")
+            try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
         case "ui/front":
             // Agreed UI sessions only: shows the window above others (no activation) so WebKit paints for captures.
             guard let window = editor?.view.window else { return }

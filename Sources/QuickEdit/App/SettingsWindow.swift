@@ -16,7 +16,31 @@ enum SettingsWindow {
     }
 }
 
+/// Which Settings tab is showing (the File Types menu item opens that tab).
+@Observable final class SettingsNavigation {
+    enum Tab: String { case general, fileTypes }
+    static let shared = SettingsNavigation()
+    var tab = Tab.general
+    let associations = FileAssociations()
+}
+
 struct SettingsView: View {
+    @Bindable private var navigation = SettingsNavigation.shared
+
+    var body: some View {
+        TabView(selection: $navigation.tab) {
+            GeneralSettingsView()
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsNavigation.Tab.general)
+            FileTypesView(associations: navigation.associations)
+                .tabItem { Label("File Types", systemImage: "doc.badge.gearshape") }
+                .tag(SettingsNavigation.Tab.fileTypes)
+        }
+        .fixedSize()
+    }
+}
+
+struct GeneralSettingsView: View {
     @Bindable private var settings = AppSettings.shared
 
     var body: some View {

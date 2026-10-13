@@ -35,6 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSDocumentController.shared.newDocument(sender)
     }
 
+    @objc func showFileTypes(_ sender: Any?) {
+        SettingsNavigation.shared.tab = .fileTypes
+        showSettings(sender)
+    }
+
     @objc func showSettings(_ sender: Any?) {
         let window = settingsWindow ?? SettingsWindow.make()
         settingsWindow = window
