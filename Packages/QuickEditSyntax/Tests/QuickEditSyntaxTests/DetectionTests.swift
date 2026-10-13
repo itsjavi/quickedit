@@ -74,7 +74,7 @@ struct DetectionTests {
         // Unknown names, extensions and interpreters fall back to plain text.
         #expect(detect("archive.tar.gz") == "plaintext")
         #expect(detect("unknown") == "plaintext")
-        #expect(detect("unknown", "#!/usr/bin/env ruby") == "plaintext")
+        #expect(detect("unknown", "#!/usr/bin/env perl") == "plaintext")
         #expect(detect("unknown", "not a shebang") == "plaintext")
         #expect(detect("") == "plaintext")
         // Paths are reduced to their last component.
@@ -100,7 +100,7 @@ struct DetectionTests {
     func unknownFenceInfo() {
         #expect(LanguageRegistry.language(forFenceInfo: "") == nil)
         #expect(LanguageRegistry.language(forFenceInfo: "elixir") == nil)
-        #expect(LanguageRegistry.language(forFenceInfo: "c++") == nil)
+        #expect(LanguageRegistry.language(forFenceInfo: "cobol") == nil)
     }
 
     @Test("registry is consistent")

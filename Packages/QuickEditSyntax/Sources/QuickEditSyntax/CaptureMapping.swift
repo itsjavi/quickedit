@@ -50,7 +50,7 @@ enum CaptureMapping {
         map(.namespace, "module", "namespace")
         map(.label, "label")
         map(.operator, "operator", "keyword.operator.symbol")
-        map(.punctuation, "punctuation", "tag.delimiter")
+        map(.punctuation, "punctuation", "tag.delimiter", "delimiter")
         map(.tag, "tag", "tag.builtin")
         map(.attribute, "attribute", "tag.attribute", "attribute.builtin")
         map(.heading, "text.title", "markup.heading", "title")

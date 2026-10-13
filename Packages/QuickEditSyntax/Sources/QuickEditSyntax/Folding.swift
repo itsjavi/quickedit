@@ -30,9 +30,14 @@ struct FoldBuilder {
     let text: NSString
     let lines: LineIndex
 
-    private static let closingTokens: Set<String> = ["}", "]", ")"]
+    /// Closing tokens: brackets, Ruby/Lua `end`, Objective-C `@end`, Nix `''`.
+    private static let closingTokens: Set<String> = ["}", "]", ")", "end", "@end", "''"]
     private static let closingNodes: Set<String> = [
         "end_tag", "ETag", "jsx_closing_element", "fenced_code_block_delimiter",
+        // HCL braces, Svelte {/if}-style block ends, CMake end commands
+        "block_end", "object_end", "tuple_end", "if_end", "each_end", "await_end", "key_end", "snippet_end",
+        "endfunction_command", "endmacro_command", "endforeach_command", "endwhile_command", "endblock_command",
+        "endif_command",
     ]
 
     /// Walks the multi-line part of the tree (a single-line node can't contain a fold) and folds the nodes the

@@ -99,8 +99,8 @@ for ((i = 0; i < COUNT; i++)); do
     echo "error: $name parser ABI '$abi' is outside the runtime's supported 13...15" >&2
     exit 1
   fi
-  symbol="$(grep -oE 'const TSLanguage \*tree_sitter_[A-Za-z0-9_]+\(void\)' "$src/src/parser.c" | head -1 |
-    sed -E 's/.*\*(tree_sitter_[A-Za-z0-9_]+)\(void\)/\1/')"
+  symbol="$({ grep -oE 'const TSLanguage \*tree_sitter_[A-Za-z0-9_]+\((void)?\)' "$src/src/parser.c" || true; } | head -1 |
+    sed -E 's/.*\*(tree_sitter_[A-Za-z0-9_]+)\(.*/\1/')"
   [[ -n "$symbol" ]] || { echo "error: no tree_sitter_* entry point in $name" >&2; exit 1; }
 
   out="$VENDOR/$name"

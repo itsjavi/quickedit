@@ -363,11 +363,12 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
     /// Detects the language from the file name (and a `#!` line) unless the user picked one, then re-highlights.
     func updateLanguage() {
+        // The start of the file is enough (`.h` headers are told apart by content), even for a one-line 300 MB file.
         let text = textView.string as NSString
-        let firstLine = text.substring(with: text.lineRange(for: NSRange(location: 0, length: 0)))
+        let head = text.substring(with: NSRange(location: 0, length: min(text.length, 8192)))
         let name = document.fileURL?.lastPathComponent ?? document.displayName ?? ""
         let language = state.languageOverride.flatMap(LanguageRegistry.language(id:))
-            ?? LanguageRegistry.detect(fileName: name, firstLine: firstLine)
+            ?? LanguageRegistry.detect(fileName: name, firstLine: nil, content: head)
         state.languageName = language.displayName
         textView.commentStyle = CommentStyle(line: language.lineComment, block: language.blockComment.map { ($0.open, $0.close) })
         // Makefiles need tabs: without a file or .editorconfig say, the language's preference wins over Settings.

@@ -488,7 +488,7 @@ struct HighlightTests {
 
     @Test("every highlighted language has a fixture")
     func coverage() {
-        let covered = Set(Self.fixtures.map(\.language))
+        let covered = Set((Self.fixtures + MoreLanguagesTests.fixtures).map(\.language))
         let highlighted = LanguageRegistry.all.filter { if case .grammar = $0.highlighting { true } else { false } }
         for language in highlighted {
             #expect(covered.contains(language.id), "no fixture for \(language.id)")

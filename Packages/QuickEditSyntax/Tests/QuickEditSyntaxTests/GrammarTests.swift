@@ -104,6 +104,8 @@ struct GrammarTests {
     func unmappedCaptures() throws {
         let ignored: Set<String> = [
             "embedded", "spell", "nospell", "markup", "error", "identifier.unused", "_target", "_name", "glimmer",
+            // PowerShell's query captures whole arrays and assigned pipelines; they shouldn't color anything.
+            "array", "assignvalue",
         ]
         var unmapped: [String] = []
         for name in VendoredGrammars.names {

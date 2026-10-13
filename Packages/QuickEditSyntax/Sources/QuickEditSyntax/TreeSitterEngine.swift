@@ -167,7 +167,7 @@ final class TreeSitterEngine: HighlightEngine {
             let cursor = query.execute(in: tree)
             cursor.setRange(range)
             while let match = cursor.next() {
-                if !match.predicates.isEmpty, !match.allowed(in: context) { continue }
+                if !match.predicates.isEmpty, !allowed(match, grammar.highlightPredicates, context) { continue }
                 for capture in match.captures where capture.index < grammar.highlightCodes.count {
                     guard let code = grammar.highlightCodes[capture.index] else { continue }
                     collector.add(
@@ -186,7 +186,7 @@ final class TreeSitterEngine: HighlightEngine {
         let cursor = query.execute(in: tree)
         cursor.setRange(range)
         while let match = cursor.next() {
-            if !match.predicates.isEmpty, !match.allowed(in: context) { continue }
+            if !match.predicates.isEmpty, !allowed(match, grammar.injectionPredicates, context) { continue }
             let pattern = grammar.injectionPatterns[match.patternIndex]
             var languageName: String?
             var nodes: [Node] = []
@@ -228,6 +228,14 @@ final class TreeSitterEngine: HighlightEngine {
                 tree: layer.tree, grammar: injection.grammar, depth: depth + 1, layerRanges: ranges, range: subrange,
                 context: context, into: &collector)
         }
+    }
+
+    private func allowed(
+        _ match: QueryMatch, _ custom: [[CustomPredicate]], _ context: SwiftTreeSitter.Predicate.Context
+    ) -> Bool {
+        guard match.allowed(in: context) else { return false }
+        guard match.patternIndex < custom.count, !custom[match.patternIndex].isEmpty else { return true }
+        return CustomPredicate.allow(custom[match.patternIndex], match) { Self.substring(of: text, $0) }
     }
 
     private struct CombinedKey: Hashable {

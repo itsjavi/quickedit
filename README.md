@@ -39,11 +39,13 @@ for byte as it came in, except what you changed. There's nothing to configure an
 - **Folders.** File › Open Folder… (⇧⌘O), or drop a folder on QuickEdit: a file tree sidebar (dotfiles and
   `.gitignore`d files hidden until you show them), the folder's files as tabs of one window, ⌘P to open any file by
   name, and New File, New Folder, Rename, Move (drag) and Move to Trash in the tree. Open files follow renames and moves.
-- **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, [Lumiose](https://itsjavi.com/lumiose/)
-  components (`.stsx`/`.sjsx`, with their `<style>` blocks as CSS), CSS, HTML, Markdown, CSV/TSV (rainbow columns),
-  JSON/JSONC/JSON Lines, YAML, TOML, Go (+ `go.mod`), Rust, Python, Swift, GDScript and Godot resources and shaders,
-  Dockerfile, XML (plists, SVG, Xcode files), INI and config files, shell scripts, Makefiles, SQL, `.env`, ignore files
-  and diffs. Logs and `.txt` open as plain text.
+- **Syntax highlighting** with tree-sitter for JavaScript/JSX, TypeScript/TSX, [Lumiose](https://itsjavi.com/lumiose/) components (`.stsx`/`.sjsx`,
+  with their `<style>` blocks as CSS), CSS, SCSS/Sass/Less, HTML, Vue, Svelte, Markdown, CSV/TSV (rainbow columns),
+  JSON/JSONC/JSON Lines, YAML, TOML, GraphQL, Protocol Buffers, Terraform/HCL, Nix, SpiceDB schemas, C, C++,
+  Objective-C (`.h` by content), C#, Java, Kotlin, Swift, Go (+ `go.mod`), Rust, Zig, Dart, Python, Ruby, PHP, Lua,
+  PowerShell, Metal and GLSL shaders, GDScript and Godot resources and shaders, Dockerfile, CMake, XML (plists, SVG,
+  Xcode files), Xcode `.xcconfig`, `.strings` and `.pbxproj`, INI and config files, shell scripts, Makefiles, SQL,
+  `.env`, ignore files and diffs. Logs and `.txt` open as plain text.
 - **Safe edits.** Files are saved byte for byte as they came in, except what you changed:
   - the encoding (UTF-8/16/32 with or without BOM, Windows/ISO Latin, Mac Roman, Shift JIS, …) and line endings
     (LF, CRLF, CR, even mixed) are kept; the status bar shows them and converts them only when you ask;
@@ -63,9 +65,9 @@ for byte as it came in, except what you changed. There's nothing to configure an
   touches, so quoting, the delimiter and line endings stay as they were, and ⌘Z undoes it.
 - **Lines.** Line numbers, current-line highlight, Go to Line (⌘L), move lines (⌃⌘↑/↓), duplicate (⇧⌘D), delete
   (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off.
-- **Code folding** for JSON, CSS, YAML, TOML, JS/TS/TSX, Lumiose, Go, Rust, Python, Swift, Markdown, HTML and XML, from
-  the gutter or View › Folding (⌥⌘← / ⌥⌘→, all with ⇧). Folding never changes the file; editing inside a fold, finding
-  text in it or going to one of its lines opens it.
+- **Code folding** for every language with a tree-sitter grammar (JSON, YAML, CSS, JS/TS, C/C++, Swift, Python,
+  Markdown, HTML, XML…), from the gutter or View › Folding (⌥⌘← / ⌥⌘→, all with ⇧). Folding never changes the file;
+  editing inside a fold, finding text in it or going to one of its lines opens it.
 - **Voice notes in Markdown.** Record from the status bar or ⌃⌘R: the clip goes to `<file>.md.assets/` next to the
   file, is linked at the caret, plays in the preview and can be transcribed on your Mac.
 - **Finder and Quick Look.** TypeScript `.ts` files (which macOS thinks are videos), YAML, TOML, CSS and Lumiose files
