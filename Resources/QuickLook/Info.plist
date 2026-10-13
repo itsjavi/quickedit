@@ -35,10 +35,19 @@
 		<dict>
 			<key>QLIsDataBasedPreview</key>
 			<true/>
-			<!-- .ts: TypeScript sources share it with MPEG-2 transport stream video (decision-5). -->
+			<!-- Text types without a system text preview or thumbnail (decision-5). Keep in sync with Thumbnail-Info.plist. -->
 			<key>QLSupportedContentTypes</key>
 			<array>
+				<!-- .ts: TypeScript sources share it with MPEG-2 transport stream video. -->
 				<string>public.mpeg-2-transport-stream</string>
+				<!-- System types conforming only to public.text, which the built-in text preview skips. -->
+				<string>public.yaml</string>
+				<string>com.itsjavi.quickedit.yaml-variant</string>
+				<string>public.toml</string>
+				<string>public.css</string>
+				<!-- Lumiose components, declared in the app's Info.plist. -->
+				<string>com.itsjavi.lumiose.stsx</string>
+				<string>com.itsjavi.lumiose.sjsx</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>
