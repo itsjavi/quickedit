@@ -36,6 +36,14 @@ let package = Package(
             swiftSettings: [.unsafeFlags(["-application-extension"])],
             linkerSettings: [.unsafeFlags(["-application-extension", "-Xlinker", "-e", "-Xlinker", "_NSExtensionMain"])]
         ),
+        // Quick Look thumbnail extension, assembled into Contents/PlugIns/QuickEditThumbnail.appex by build-app.sh.
+        .executableTarget(
+            name: "QuickEditThumbnail",
+            dependencies: ["QuickEditCore"],
+            path: "Sources/QuickEditThumbnail",
+            swiftSettings: [.unsafeFlags(["-application-extension"])],
+            linkerSettings: [.unsafeFlags(["-application-extension", "-Xlinker", "-e", "-Xlinker", "_NSExtensionMain"])]
+        ),
         .testTarget(
             name: "QuickEditCoreTests",
             dependencies: ["QuickEditCore", .product(name: "QuickEditSyntax", package: "QuickEditSyntax")],

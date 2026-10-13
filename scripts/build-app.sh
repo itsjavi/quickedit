@@ -18,8 +18,10 @@ case "$VARIANT" in
   test)    CONFIG=debug;   NAME="QuickEdit Test"; BUNDLE_ID="com.itsjavi.quickedit.test"; SCHEME="quickedit-test" ;;
   *) echo "unknown variant: $VARIANT" >&2; exit 64 ;;
 esac
-# The Quick Look extension registers a system-wide preview provider: only the release build embeds it, unless QUICKLOOK=1.
+# The Quick Look extensions register system-wide providers: only the release build embeds them, unless QUICKLOOK=1.
 if [[ -z "${QUICKLOOK:-}" ]]; then QUICKLOOK=$([[ "$VARIANT" == "release" ]] && echo 1 || echo 0); fi
+# product:Info.plist in Resources/QuickLook:bundle id suffix
+QL_EXTENSIONS=(QuickEditQuickLook:Info.plist:quicklook QuickEditThumbnail:Thumbnail-Info.plist:thumbnail)
 
 # OPTIMIZE=1 optimizes a debug (Dev/Test) build, keeping its DEBUG hooks, for performance measurements.
 SWIFT_FLAGS=(-c "$CONFIG")
@@ -27,7 +29,9 @@ if [[ -n "${OPTIMIZE:-}" && "$CONFIG" == "debug" ]]; then
   SWIFT_FLAGS+=(-Xswiftc -O -Xcc -O2 --scratch-path .build/optimized-debug)
 fi
 swift build "${SWIFT_FLAGS[@]}" --product QuickEdit
-if [[ "$QUICKLOOK" == "1" ]]; then swift build "${SWIFT_FLAGS[@]}" --product QuickEditQuickLook; fi
+if [[ "$QUICKLOOK" == "1" ]]; then
+  for ext in "${QL_EXTENSIONS[@]}"; do swift build "${SWIFT_FLAGS[@]}" --product "${ext%%:*}"; done
+fi
 BIN="$(swift build "${SWIFT_FLAGS[@]}" --show-bin-path)"
 APP="build/$NAME.app"
 PLIST="$APP/Contents/Info.plist"
@@ -66,26 +70,32 @@ if [[ -d Resources/AppIcon.icon ]]; then
   rm -rf "$ICON_DIR"
 fi
 
-# Quick Look extension (decision-5), signed before the app that seals it.
-APPEX="$APP/Contents/PlugIns/QuickEditQuickLook.appex"
+# Quick Look extensions (decision-5), signed before the app that seals them.
 if [[ "$QUICKLOOK" == "1" ]]; then
-  mkdir -p "$APPEX/Contents/MacOS"
-  cp "$BIN/QuickEditQuickLook" "$APPEX/Contents/MacOS/QuickEditQuickLook"
-  cp Resources/QuickLook/Info.plist "$APPEX/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.quicklook" "$APPEX/Contents/Info.plist"
-  for key in CFBundleShortVersionString CFBundleVersion; do
-    /usr/libexec/PlistBuddy -c "Set :$key $(/usr/libexec/PlistBuddy -c "Print :$key" "$PLIST")" "$APPEX/Contents/Info.plist"
+  for ext in "${QL_EXTENSIONS[@]}"; do
+    IFS=: read -r PRODUCT INFO SUFFIX <<< "$ext"
+    APPEX="$APP/Contents/PlugIns/$PRODUCT.appex"
+    mkdir -p "$APPEX/Contents/MacOS"
+    cp "$BIN/$PRODUCT" "$APPEX/Contents/MacOS/$PRODUCT"
+    cp "Resources/QuickLook/$INFO" "$APPEX/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.$SUFFIX" "$APPEX/Contents/Info.plist"
+    for key in CFBundleShortVersionString CFBundleVersion; do
+      /usr/libexec/PlistBuddy -c "Set :$key $(/usr/libexec/PlistBuddy -c "Print :$key" "$PLIST")" "$APPEX/Contents/Info.plist"
+    done
   done
 fi
 
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 if [[ "$QUICKLOOK" == "1" ]]; then
+  # Both extensions share the sandbox entitlements.
   QL_ENTITLEMENTS=Resources/QuickLook/QuickEditQuickLook.entitlements
-  if [[ "$SIGN_IDENTITY" == "-" ]]; then
-    codesign --force --sign - --entitlements "$QL_ENTITLEMENTS" "$APPEX"
-  else
-    codesign --force --options runtime --timestamp --entitlements "$QL_ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APPEX"
-  fi
+  for APPEX in "$APP"/Contents/PlugIns/*.appex; do
+    if [[ "$SIGN_IDENTITY" == "-" ]]; then
+      codesign --force --sign - --entitlements "$QL_ENTITLEMENTS" "$APPEX"
+    else
+      codesign --force --options runtime --timestamp --entitlements "$QL_ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APPEX"
+    fi
+  done
 fi
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --sign - "$APP"

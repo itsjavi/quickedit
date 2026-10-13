@@ -40,7 +40,8 @@ A native macOS code viewer and editor for small, quick edits: a modern TextEdit,
   file, is linked at the caret, plays in the preview and can be transcribed on this Mac.
 - **Light and dark.** Follow the system or pick Light or Dark (View › Appearance).
 - **Finder and Quick Look.** QuickEdit registers for all the file types above and `.txt`. TypeScript `.ts` files
-  (which macOS thinks are videos) get a plain-text Quick Look preview; real `.ts` videos still play.
+  (which macOS thinks are videos), YAML, TOML, CSS and Lumiose `.stsx`/`.sjsx` files get a plain-text Quick Look
+  preview, and Finder's icons and preview pane show their first lines; real `.ts` videos still play.
 
 ## Install
 

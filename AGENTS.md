@@ -228,7 +228,8 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `Sources/QuickEdit/Editor`                      | Text view, line number ruler, invisibles, line commands, highlighting glue   |
 | `Sources/QuickEdit/Preview`, `Voice`            | Markdown/HTML preview, voice recorder, on-device transcription               |
 | `Sources/QuickEdit/Debug`                       | URL scheme handler; DEBUG-only test hooks                                    |
-| `Sources/QuickEditQuickLook`                    | Quick Look extension: text `.ts` as plain text, video back to the system     |
+| `Sources/QuickEditQuickLook`                    | Quick Look preview: `.ts`, YAML, TOML, CSS, Lumiose as plain text            |
+| `Sources/QuickEditThumbnail`                    | Quick Look thumbnails: the first lines of the same types on a page           |
 | `Packages/QuickEditSyntax`                      | Local package: language registry, vendored tree-sitter grammars, highlighter |
 | `Resources/`                                    | Info.plist, privacy manifest, `AppIcon.icon`                                 |
 | `scripts/`                                      | `build-app.sh`, `release.sh`, `make-icon.swift`, `window-screenshot.swift`   |
@@ -255,8 +256,8 @@ yet.
 | QuickEdit Dev  | `com.itsjavi.quickedit.dev`  | `quickedit-dev://`  | Developer debug runs                                   |
 | QuickEdit Test | `com.itsjavi.quickedit.test` | `quickedit-test://` | Agents: `LSUIElement`, never activates or steals focus |
 
-The Quick Look extension is embedded in the release build only (`QUICKLOOK=1 make test-app` adds it to another
-variant), so agent builds don't register a system-wide Quick Look provider.
+The Quick Look extensions (preview and thumbnail) are embedded in the release build only (`QUICKLOOK=1 make test-app`
+adds them to another variant), so agent builds don't register system-wide Quick Look providers.
 
 ### Driving the Test build
 

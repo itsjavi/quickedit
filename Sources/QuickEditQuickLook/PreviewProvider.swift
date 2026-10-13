@@ -3,10 +3,11 @@ import QuickEditCore
 import QuickLookUI
 import UniformTypeIdentifiers
 
-/// Data-based Quick Look preview for `.ts` files, which macOS types as MPEG-2 transport stream video.
+/// Data-based Quick Look preview for text types macOS has no text preview for: `.ts`, which it types as MPEG-2
+/// transport stream video, and YAML, TOML, CSS and Lumiose components, whose types conform only to `public.text`.
 ///
-/// TypeScript (and any other text) is shown as monospaced plain text. Real video, or other binary data, is handed back
-/// to Quick Look as the original file, so the system's movie preview still plays it.
+/// Text is shown as monospaced plain text, without syntax highlighting (decision-5). Real video is handed back to
+/// Quick Look as the original file, so the system's movie preview still plays it.
 final class PreviewProvider: QLPreviewProvider, QLPreviewingController {
     func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
         let url = request.fileURL
@@ -18,8 +19,14 @@ final class PreviewProvider: QLPreviewProvider, QLPreviewingController {
                 reply.stringEncoding = .utf8
                 return Data(html.utf8)
             }
-        case .transportStream, .binary:
+        case .transportStream:
             return QLPreviewReply(fileURL: url)
+        case .binary:
+            // Only movies have a system preview to fall back to; binary data named .yaml gets the generic one.
+            if (try? url.resourceValues(forKeys: [.contentTypeKey]).contentType)?.conforms(to: .movie) == true {
+                return QLPreviewReply(fileURL: url)
+            }
+            throw CocoaError(.fileReadCorruptFile)
         }
     }
 }
