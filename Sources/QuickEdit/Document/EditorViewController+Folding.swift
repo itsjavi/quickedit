@@ -119,7 +119,8 @@ extension EditorViewController {
         guard let fold = folded.first(where: { NSIntersectionRange($0, new).length > 0 || (new.location > $0.location && new.location < NSMaxRange($0)) }) else {
             return newRanges
         }
-        if new.length == 0, let old, old.length == 0 {
+        // A one-character step from the edge of a fold is an arrow key: step over the ⋯ instead of opening it.
+        if new.length == 0, let old, old.length == 0, abs(new.location - old.location) <= 2 {
             if old.location == fold.location, new.location > fold.location { return [NSValue(range: NSRange(location: NSMaxRange(fold), length: 0))] }
             if old.location == NSMaxRange(fold), new.location < NSMaxRange(fold) { return [NSValue(range: NSRange(location: fold.location, length: 0))] }
         }
