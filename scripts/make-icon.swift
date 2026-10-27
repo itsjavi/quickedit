@@ -33,8 +33,9 @@ let output = arguments.first ?? "Resources/AppIcon.icon"
 // MARK: - Drawing helpers
 
 let canvas: CGFloat = 1024
-// Artwork stays inside the middle ~64% of the canvas so the system mask, glass and shadow have room.
-let artFraction: CGFloat = 0.64
+// Artwork fills the middle ~82% of the canvas, bold like the system apps' icons, leaving the mask's corners, the
+// glass edge and the shadow a little room.
+let artFraction: CGFloat = 0.82
 let art = NSRect(x: canvas * (1 - artFraction) / 2, y: canvas * (1 - artFraction) / 2,
                  width: canvas * artFraction, height: canvas * artFraction)
 let unit = art.width
@@ -231,9 +232,9 @@ func codePane() -> Concept {
 }
 
 // Shared by concepts 3 and 4: a neutral field, white in light mode and black in dark mode, with a coral `</>`.
-// icon.json turns the page grey on white and near-white on black so it never vanishes into the fill.
+// icon.json inverts the page against the field: charcoal on white, near-white on black.
 let neutralFill = (light: ["#FFFFFF", "#ECEDF1"], dark: ["#2A2B30", "#050506"])
-let paper = (light: ["#E4E7EC", "#C5CAD4"], dark: ["#FFFFFF", "#DDE1E8"])
+let paper = (light: ["#3B3E46", "#1A1B20"], dark: ["#FFFFFF", "#DDE1E8"])
 let coral = ("#FF7A45", "#F2386E")
 
 /// Centerline of a `</>` tag filling `r` (the slash overshoots a little); stroke it with round caps and joins.
@@ -263,7 +264,8 @@ func dashPage() -> Concept {
     let streaks: [(y: CGFloat, length: CGFloat)] = [(0.70, 0.32), (0.50, 0.44), (0.30, 0.26)]  // y in page heights
     let streak = ("#FFA27A", "#FF6F6A")  // coral-peach: reads on both the white and the black field
 
-    let page = NSRect(x: art.maxX - pageSize.width - unit * 0.05, y: art.midY - pageSize.height / 2,
+    // A little left of the right edge, so page and streaks sit centred as a whole.
+    let page = NSRect(x: art.maxX - pageSize.width - unit * 0.09, y: art.midY - pageSize.height / 2,
                       width: pageSize.width, height: pageSize.height)
     let tag = NSRect(x: page.midX - tagSize.width / 2, y: page.midY - tagSize.height / 2,
                      width: tagSize.width, height: tagSize.height)
@@ -303,8 +305,8 @@ func codePage() -> Concept {
     let lineHeight = unit * 0.05
     let lineGap = unit * 0.05
     let lines: [(indent: CGFloat, width: CGFloat)] = [(0, 0.40), (0.08, 0.32), (0, 0.20)]  // in units
-    let ink = "#A3AAB6"  // faint grey code: present on the grey (light) and the white (dark) page
-    let fold = (light: ["#CDD2DA", "#B3BAC5"], dark: ["#DADDE3", "#BFC5CE"])
+    let ink = "#A3AAB6"  // faint grey code: present on the charcoal (light) and the white (dark) page
+    let fold = (light: ["#5A5E68", "#41444C"], dark: ["#DADDE3", "#BFC5CE"])
 
     let page = NSRect(x: art.midX - pageSize.width / 2, y: art.midY - pageSize.height / 2,
                       width: pageSize.width, height: pageSize.height)
