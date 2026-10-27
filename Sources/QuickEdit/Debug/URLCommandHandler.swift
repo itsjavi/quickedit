@@ -227,6 +227,12 @@ enum DebugHooks {
             let report = String(format: "keystrokes: %d\nmedian: %.2f ms\np95: %.2f ms\nmax: %.2f ms\ninsert+parse: %.2f\nlayout: %.2f\ncolor: %.2f\ndisplay: %.2f\nlength: %d\n", count,
                                 totals[totals.count / 2], totals[Int(Double(totals.count) * 0.95)], totals.last ?? 0,
                                 median(phases[0]), median(phases[1]), median(phases[2]), median(phases[3]), (textView.string as NSString).length)
+                + {
+                    // Which keystroke was slowest, and where its time went.
+                    let slowest = (0..<count).max { a, b in phases.reduce(0) { $0 + $1[a] } < phases.reduce(0) { $0 + $1[b] } } ?? 0
+                    return String(format: "slowest: #%d insert+parse %.2f layout %.2f color %.2f display %.2f\n", slowest + 1,
+                                  phases[0][slowest], phases[1][slowest], phases[2][slowest], phases[3][slowest])
+                }()
             guard query["pause"] == "1" else {
                 try? report.write(toFile: path, atomically: true, encoding: .utf8)
                 return
