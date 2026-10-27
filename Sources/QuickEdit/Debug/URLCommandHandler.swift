@@ -412,7 +412,7 @@ enum DebugHooks {
             lines.append("\(prefix).preview: \(state.previewKind.map { "\($0)" } ?? "none") mode=\(state.mode.rawValue) remote=\(state.allowsRemoteContent)")
             lines.append("\(prefix).undo: \(editor.document.undoManager?.undoActionName ?? "")")
             let textView = editor.textView!
-            lines.append("\(prefix).layout: frame=\(textView.frame) visible=\(textView.visibleRect) container=\(textView.textContainer?.size ?? .zero)")
+            lines.append("\(prefix).layout: frame=\(textView.frame) visible=\(textView.visibleRect) container=\(textView.textContainer?.size ?? .zero) laidOut=\(editor.editorLayoutManager.firstUnlaidCharacterIndex())/\(editor.document.textStorage.length)")
             if editor.document.textStorage.length > 0 {
                 let attributes = editor.document.textStorage.attributes(at: 0, effectiveRange: nil)
                 lines.append("\(prefix).attributes: font=\((attributes[.font] as? NSFont)?.fontName ?? "-") color=\(String(describing: attributes[.foregroundColor]))")

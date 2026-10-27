@@ -78,6 +78,7 @@ extension EditorViewController {
         }
         ruler?.needsDisplay = true
         textView.needsDisplay = true
+        scheduleFullLayout()
     }
 
     // MARK: Keeping folds right while editing

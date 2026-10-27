@@ -111,6 +111,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         storage.delegate = self
         NotificationCenter.default.addObserver(self, selector: #selector(settingsDidChange), name: .editorSettingsDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(scrollViewDidResize), name: NSView.frameDidChangeNotification, object: scrollView)
+        // The text area also narrows when the gutter widens (line 1000) or a scroller appears: wrapped lines change.
+        NotificationCenter.default.addObserver(self, selector: #selector(textAreaDidResize), name: NSView.frameDidChangeNotification, object: scrollView.contentView)
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(editorDidScroll), name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
         applySettings()
@@ -278,6 +280,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
             appliedLayout = (settings.wrapLines, settings.showLineNumbers)
         }
         applyBaseAttributes()
+        scheduleFullLayout()
     }
 
     private var appliedLayout: (wrap: Bool, lineNumbers: Bool)?
@@ -334,8 +337,48 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         textView.sizeToFit()
     }
 
+    // MARK: Full layout
+
+    /// Files up to this length (UTF-16 units, ~1 s of layout in all) are laid out completely while the app is idle.
+    static let fullLayoutMaximumLength = 4_000_000
+
+    private var isFullLayoutScheduled = false
+
+    /// Non-contiguous layout lays out only the text that was shown and guesses the height of the rest, short by about
+    /// a third, and never finishes the job by itself. A fast scroll then stops at the guessed end and waits while the
+    /// real text is laid out, again and again. So the rest is laid out in slices of a few milliseconds whenever
+    /// layout was thrown away (opening, resizing, settings, folding); after an edit there's nothing left to do.
+    func scheduleFullLayout() {
+        guard !isFullLayoutScheduled else { return }
+        isFullLayoutScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+            MainActor.assumeIsolated { self?.layOutNextSlices() }
+        }
+    }
+
+    private func layOutNextSlices() {
+        isFullLayoutScheduled = false
+        let length = document.textStorage.length
+        guard length <= Self.fullLayoutMaximumLength else { return }
+        let deadline = DispatchTime.now().uptimeNanoseconds + 4_000_000
+        while layoutManager.firstUnlaidCharacterIndex() < length {
+            let location = layoutManager.firstUnlaidCharacterIndex()
+            layoutManager.ensureLayout(forCharacterRange: NSRange(location: location, length: min(8_000, length - location)))
+            guard layoutManager.firstUnlaidCharacterIndex() > location else { return }
+            if DispatchTime.now().uptimeNanoseconds > deadline {
+                scheduleFullLayout()
+                return
+            }
+        }
+    }
+
+    @objc private func textAreaDidResize() {
+        scheduleFullLayout()
+    }
+
     @objc private func scrollViewDidResize() {
         colorizer.visibleRangeDidChange()
+        scheduleFullLayout()
         guard !settings.wrapLines else { return }
         // Without wrapping, the text view is at least as wide as the visible area (background, current line).
         textView.minSize = NSSize(width: textAreaWidth, height: scrollView.contentSize.height)
