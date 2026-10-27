@@ -85,7 +85,9 @@ struct PerformanceTests {
     /// The editor's catch-up after typing pauses in a 2 MB Markdown file: the reparse itself runs off the main
     /// thread, which only pays for the snapshot (`begin`) and for installing the tree (`finish`). Editing the
     /// top-level heading re-parses the section that spans the whole file (~150 ms on the main thread before).
-    @Test("a 2 MB Markdown file's catch-up reparse costs the main thread under a frame")
+    /// The first keystroke after opening defers as well: the first incremental parse after the full one costs
+    /// nearly as much (~360 ms on the main thread before TASK-51), so it's the background warm-up's job.
+    @Test("a 2 MB Markdown file's first keystroke and catch-up reparses cost the main thread under a frame")
     func backgroundMarkdownReparse() async throws {
         let block = """
             ## Section
@@ -99,17 +101,23 @@ struct PerformanceTests {
             let value = compute(1, "text")
             ```
 
+
             """
+        // A blank line after each fence: in this shape the first reparse after the full parse costs ~75% of it.
         var text = ("# Document\n\n" + String(repeating: block, count: 2_000_000 / block.utf16.count)) as NSString
         let highlighter = SyntaxHighlighter(language: LanguageRegistry.language(id: "markdown")!)
-        highlighter.deferredParseThreshold = .zero
+        highlighter.deferredParseThreshold = .milliseconds(8)  // the editor's
         highlighter.setText(text)
+        #expect(highlighter.hasPendingParse, "warm-up")
         let clock = ContinuousClock()
         for (name, location) in [("middle", text.length / 2), ("heading", 2)] {
             let mutable = NSMutableString(string: text)
             mutable.insert("x", at: location)
             text = mutable.copy() as! NSString
-            highlighter.applyEdit(replacing: NSRange(location: location, length: 0), with: 1, in: text)
+            let keystroke = clock.measure {
+                highlighter.applyEdit(replacing: NSRange(location: location, length: 0), with: 1, in: text)
+            }
+            #expect(keystroke < Self.frameBudget, "\(name) keystroke took \(keystroke)")
             var job: PendingParse?
             let begin = clock.measure { job = highlighter.beginPendingParse() }
             let pending = try #require(job)
@@ -117,7 +125,7 @@ struct PerformanceTests {
             var changed: [NSRange]?
             let finish = clock.measure { changed = highlighter.finishPendingParse(result) }
             #expect(changed != nil)
-            print("PERF markdown-catch-up \(name) units=\(text.length) begin=\(begin) run=\(result.duration) finish=\(finish)")
+            print("PERF markdown-catch-up \(name) units=\(text.length) keystroke=\(keystroke) begin=\(begin) run=\(result.duration) finish=\(finish)")
             #expect(begin < Self.frameBudget, "begin took \(begin)")
             #expect(finish < Self.frameBudget, "finish took \(finish)")
         }

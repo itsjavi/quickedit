@@ -53,12 +53,25 @@ final class TreeSitterEngine: HighlightEngine {
         if stylesheetGrammar != nil {
             styles = StyleScan.scan(text)
         }
+        let clock = ContinuousClock()
+        let start = clock.now
         tree = parser.parse(tree: MutableTree?.none, readBlock: rootReadBlock(for: text))
-        // A full parse says little about incremental ones: those are timed from the first edit.
-        lastParseDuration = .zero
-        hasPendingParse = false
+        let duration = clock.now - start
         inFlight = nil
         editLog = []
+        // The first incremental parse after a full one can cost nearly as much as it (~75% in Markdown, whose later
+        // reparses are ~50x cheaper; TypeScript has no such step). So with deferral, a slow full parse leaves a
+        // warm-up reparse waiting (a no-op edit), which the editor runs off the main thread before the first
+        // keystroke, and that keystroke defers too. Otherwise incremental parses are timed from the first edit.
+        if let threshold = deferredParseThreshold, duration >= threshold, let tree {
+            let middle = text.length > 0 ? text.rangeOfComposedCharacterSequence(at: text.length / 2).location : 0
+            tree.edit(sameLengthEdit(over: NSRange(location: middle, length: 0)))
+            lastParseDuration = duration
+            hasPendingParse = true
+        } else {
+            lastParseDuration = .zero
+            hasPendingParse = false
+        }
     }
 
     func rebind(_ text: NSString) {

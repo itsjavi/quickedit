@@ -70,6 +70,8 @@ final class SyntaxColorizer {
         highlighter.rebind(text)
         self.highlighter = highlighter
         colorVisibleRange()
+        // A large file's warm-up reparse (see `deferredParseThreshold`), off the main thread before typing starts.
+        if highlighter.hasPendingParse { startPendingParse() }
     }
 
     /// Call from the text storage's `didProcessEditing` for character edits.

@@ -321,6 +321,38 @@ struct IncrementalTests {
         }
     }
 
+    /// The first incremental parse after a full one can cost nearly as much (Markdown), so a slow full parse leaves
+    /// a warm-up reparse for the editor to run in the background before the first keystroke (TASK-51).
+    @Test("a full parse slower than the deferral threshold leaves a warm-up reparse waiting")
+    func warmUpAfterSlowFullParse() {
+        let markdown = LanguageRegistry.language(id: "markdown")!
+        var text = "# Title\n\nSome *text* and `code`.\n" as NSString
+        let fast = SyntaxHighlighter(language: markdown)
+        fast.deferredParseThreshold = .seconds(10)
+        fast.setText(text)
+        #expect(!fast.hasPendingParse)
+        let undeferred = SyntaxHighlighter(language: markdown)
+        undeferred.setText(text)
+        #expect(!undeferred.hasPendingParse)
+
+        let slow = SyntaxHighlighter(language: markdown)
+        slow.deferredParseThreshold = .zero  // every full parse counts as slow
+        slow.setText(text)
+        #expect(slow.hasPendingParse)
+        // The first edit defers too; the warm-up and the edit catch up together.
+        let mutable = NSMutableString(string: text)
+        mutable.insert("x", at: 2)
+        text = mutable.copy() as! NSString
+        slow.applyEdit(replacing: NSRange(location: 2, length: 0), with: 1, in: text)
+        #expect(slow.hasPendingParse)
+        slow.parsePending()
+        #expect(!slow.hasPendingParse)
+        let fresh = SyntaxHighlighter(language: markdown)
+        fresh.setText(text)
+        let all = NSRange(location: 0, length: text.length)
+        #expect(slow.tokens(in: all) == fresh.tokens(in: all))
+    }
+
     @Test("a background reparse superseded by setText or a newer one is ignored")
     func staleBackgroundParse() {
         let markdown = LanguageRegistry.language(id: "markdown")!

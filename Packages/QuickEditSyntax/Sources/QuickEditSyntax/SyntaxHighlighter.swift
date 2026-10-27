@@ -61,7 +61,9 @@ public final class SyntaxHighlighter {
 
     /// With a threshold, an edit made after an incremental parse that took at least that long only adjusts the
     /// tree: the reparse waits for `parsePending()`, which the editor calls once typing pauses, so typing in a large
-    /// file stays fast. Nil (the default) parses after every edit.
+    /// file stays fast. Nil (the default) parses after every edit. Set it before `setText(_:)`: a full parse that
+    /// takes at least as long leaves a warm-up reparse waiting (`hasPendingParse`), since the first incremental
+    /// parse of some grammars (Markdown) costs nearly as much as the full one; run it before the first edit.
     public var deferredParseThreshold: Duration? {
         didSet { (engine as? TreeSitterEngine)?.deferredParseThreshold = deferredParseThreshold }
     }
