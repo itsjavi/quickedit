@@ -218,6 +218,47 @@ enum DebugHooks {
                                 totals[totals.count / 2], totals[Int(Double(totals.count) * 0.95)], totals.last ?? 0,
                                 median(phases[0]), median(phases[1]), median(phases[2]), median(phases[3]), (textView.string as NSString).length)
             try? report.write(toFile: path, atomically: true, encoding: .utf8)
+        case "debug/scroll-bench":
+            // Scrolls from the top to the end in `step`-point jumps (a fast fling), drawing after each, and writes
+            // per-step timings and how often the newly visible text had no layout yet.
+            guard let path = safePath(query["out"]), let editor, let layoutManager = editor.textView.layoutManager,
+                  let container = editor.textView.textContainer else { return }
+            let step = CGFloat(Double(query["step"] ?? "") ?? 120)
+            let textView = editor.textView!
+            let clip = editor.scrollView.contentView
+            clip.scroll(to: .zero)
+            editor.scrollView.reflectScrolledClipView(clip)
+            textView.displayIfNeeded()
+            var phases: [[Double]] = [[], [], []]
+            var unlaid = 0
+            func now() -> UInt64 { DispatchTime.now().uptimeNanoseconds }
+            var y: CGFloat = 0
+            while y + clip.bounds.height < textView.frame.height {
+                y += step
+                // Without forcing layout: does what's about to show already have it?
+                let origin = textView.textContainerOrigin
+                let rect = NSRect(x: 0, y: y - origin.y, width: clip.bounds.width, height: clip.bounds.height)
+                let laid = layoutManager.glyphRange(forBoundingRectWithoutAdditionalLayout: rect, in: container)
+                let covered = laid.length > 0 ? layoutManager.boundingRect(forGlyphRange: laid, in: container).maxY : 0
+                if covered + 40 < min(rect.maxY, textView.frame.height - 2 * origin.y) { unlaid += 1 }
+                let t0 = now()
+                clip.scroll(to: NSPoint(x: 0, y: y))
+                editor.scrollView.reflectScrolledClipView(clip)
+                let t1 = now()
+                editor.ruler?.displayIfNeeded()
+                let t2 = now()
+                textView.displayIfNeeded()
+                let t3 = now()
+                for (phase, (a, b)) in [(t0, t1), (t1, t2), (t2, t3)].enumerated() { phases[phase].append(Double(b - a) / 1_000_000) }
+            }
+            let steps = phases[0].count
+            guard steps > 0 else { return }
+            let totals = (0..<steps).map { i in phases.reduce(0) { $0 + $1[i] } }.sorted()
+            func median(_ values: [Double]) -> Double { values.sorted()[values.count / 2] }
+            let report = String(format: "steps: %d\nunlaid: %d\nmedian: %.2f ms\np95: %.2f ms\nmax: %.2f ms\nscroll: %.2f\nruler: %.2f\ntext: %.2f\nlength: %d\n", steps, unlaid,
+                                totals[steps / 2], totals[Int(Double(steps) * 0.95)], totals.last ?? 0,
+                                median(phases[0]), median(phases[1]), median(phases[2]), (textView.string as NSString).length)
+            try? report.write(toFile: path, atomically: true, encoding: .utf8)
         case "ui/language":
             editor?.setLanguage(id: query["id"].flatMap { $0.isEmpty ? nil : $0 })
         case "debug/tokens":

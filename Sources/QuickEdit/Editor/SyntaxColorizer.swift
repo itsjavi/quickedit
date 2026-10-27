@@ -87,12 +87,27 @@ final class SyntaxColorizer {
         scheduleRecolor()
     }
 
-    /// Recolours after scrolling or resizing when the visible range moved outside what's coloured.
+    /// After scrolling or resizing, colours what's about to show if it isn't yet: a screen above and below the
+    /// visible text, extended to three in one go. Only text not coloured yet is touched, because changing colours
+    /// redraws that text, and redrawing what AppKit already drew ahead for a fast scroll shows up as late content.
     func visibleRangeDidChange() {
-        guard isActive, let visible = visibleCharacterRange() else { return }
-        if coloredRange.location == NSNotFound || NSIntersectionRange(visible, coloredRange).length < visible.length {
-            colorVisibleRange()
+        guard isActive, let needed = visibleCharacterRange(screens: 1) else { return }
+        if coloredRange.location != NSNotFound, NSIntersectionRange(needed, coloredRange).length == needed.length { return }
+        guard let target = visibleCharacterRange(screens: 3) else { return }
+        guard coloredRange.location != NSNotFound, target.location <= NSMaxRange(coloredRange),
+              NSMaxRange(target) >= coloredRange.location
+        else {
+            color(target)
+            coloredRange = target
+            return
         }
+        if target.location < coloredRange.location {
+            color(NSRange(location: target.location, length: coloredRange.location - target.location))
+        }
+        if NSMaxRange(target) > NSMaxRange(coloredRange) {
+            color(NSRange(location: NSMaxRange(coloredRange), length: NSMaxRange(target) - NSMaxRange(coloredRange)))
+        }
+        coloredRange = NSUnionRange(coloredRange, target)
     }
 
     private var pendingParse: DispatchWorkItem?
@@ -125,25 +140,30 @@ final class SyntaxColorizer {
         }
     }
 
-    private func visibleCharacterRange() -> NSRange? {
+    /// The visible text plus `screens` screen heights above and below it.
+    private func visibleCharacterRange(screens: CGFloat) -> NSRange? {
         guard let textView, let layoutManager = textView.layoutManager, let container = textView.textContainer else { return nil }
-        // A screen above and below, so scrolling a little doesn't show uncoloured text.
         var rect = textView.visibleRect
-        rect = rect.insetBy(dx: 0, dy: -rect.height)
+        rect = rect.insetBy(dx: 0, dy: -rect.height * screens)
         let glyphs = layoutManager.glyphRange(forBoundingRect: rect, in: container)
-        return layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let characters = layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        return NSIntersectionRange(characters, NSRange(location: 0, length: textView.textStorage?.length ?? 0))
     }
 
+    /// Recolours the visible text and a screen around it (after an edit, a reparse or showing the editor again).
     func colorVisibleRange() {
-        guard let textView, let layoutManager = textView.layoutManager, let highlighter, let range = visibleCharacterRange() else { return }
-        let length = textView.textStorage?.length ?? 0
-        let clamped = NSIntersectionRange(range, NSRange(location: 0, length: length))
-        layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: clamped)
-        for token in highlighter.tokens(in: clamped) {
+        guard highlighter != nil, let range = visibleCharacterRange(screens: 1) else { return }
+        color(range)
+        coloredRange = range
+    }
+
+    private func color(_ range: NSRange) {
+        guard let layoutManager = textView?.layoutManager, let highlighter, range.length > 0 else { return }
+        layoutManager.removeTemporaryAttribute(.foregroundColor, forCharacterRange: range)
+        for token in highlighter.tokens(in: range) {
             guard let color = SyntaxPalette.color(for: token.kind) else { continue }
             layoutManager.addTemporaryAttribute(.foregroundColor, value: color, forCharacterRange: token.range)
         }
-        coloredRange = clamped
     }
 
     private func clearColors() {

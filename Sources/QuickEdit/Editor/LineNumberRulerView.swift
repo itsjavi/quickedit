@@ -99,6 +99,26 @@ final class LineNumberRulerView: NSRulerView {
         if editor.foldMarkers(in: lineRange)[line] != nil { editor.toggleFold(atLine: line) } else { super.mouseDown(with: event) }
     }
 
+    /// Typeset numbers by label, drawn in whatever colour is set: typesetting each one on every scrolled frame was
+    /// most of the time a fast scroll spent on the main thread.
+    private var labels: [Int: (line: CTLine, width: CGFloat)] = [:]
+    private var labelsFont: NSFont?
+
+    private func label(_ number: Int, font: NSFont) -> (line: CTLine, width: CGFloat) {
+        if labelsFont != font || labels.count > 5_000 {
+            labels.removeAll()
+            labelsFont = font
+        }
+        if let cached = labels[number] { return cached }
+        let string = NSAttributedString(string: String(number), attributes: [
+            .font: font, NSAttributedString.Key(kCTForegroundColorFromContextAttributeName as String): true,
+        ])
+        let line = CTLineCreateWithAttributedString(string)
+        let label = (line, CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)))
+        labels[number] = label
+        return label
+    }
+
     override func drawHashMarksAndLabels(in dirtyRect: NSRect) {
         let rect = dirtyRect.intersection(bounds)
         NSColor.textBackgroundColor.setFill()
@@ -106,31 +126,35 @@ final class LineNumberRulerView: NSRulerView {
         Self.separatorColor.setFill()
         NSRect(x: bounds.maxX - 1, y: rect.minY, width: 1, height: rect.height).fill()
 
-        guard let textView, let layoutManager = textView.layoutManager, let container = textView.textContainer else { return }
+        guard let textView, let layoutManager = textView.layoutManager, let container = textView.textContainer,
+              let context = NSGraphicsContext.current?.cgContext else { return }
         let text = textView.string as NSString
         let starts = lineIndex.lineStarts(in: text)
         let currentLine = lineIndex.line(of: textView.selectedRange().location, in: text)
         let font = numberFont
         let yOffset = convert(NSPoint.zero, from: textView).y + textView.textContainerOrigin.y
         let right = ruleThickness - 10 - Self.foldColumn
-        // Only the visible lines' markers (each redraw after an edit would otherwise walk a large file's whole tree),
-        // up to the end of the last visible line, where its region's hidden range starts.
-        let glyphs = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: container)
-        let visibleText = layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
-        let lastLine = lineIndex.line(of: visibleText.upperBound, in: text)
+        // The lines beside the dirty rect, which AppKit may ask for ahead of a scroll, not just the visible ones.
+        let textRect = textView.convert(rect, from: self)
+        let glyphs = layoutManager.glyphRange(
+            forBoundingRect: NSRect(x: 0, y: textRect.minY - textView.textContainerOrigin.y, width: textView.bounds.width, height: textRect.height),
+            in: container)
+        // Only these lines' markers (each redraw after an edit would otherwise walk a large file's whole tree), up to
+        // the end of the last line, where its region's hidden range starts.
+        let shownText = layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let lastLine = lineIndex.line(of: shownText.upperBound, in: text)
         let lastLineEnd = lastLine + 1 < starts.count ? starts[lastLine + 1] : text.length
         let markerRange = NSRange(
-            location: visibleText.location, length: min(lastLineEnd, visibleText.upperBound + 10_000) - visibleText.location)
+            location: shownText.location, length: min(lastLineEnd, shownText.upperBound + 10_000) - shownText.location)
         let markers = editor?.foldMarkers(in: markerRange) ?? [:]
+        // The view is flipped: CoreText draws upright with a flipped text matrix, at the baseline.
+        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
 
         func drawNumber(_ line: Int, baseline: CGFloat) {
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: line == currentLine ? NSColor.labelColor : NSColor.tertiaryLabelColor,
-            ]
-            let label = String(line + 1) as NSString
-            let width = label.size(withAttributes: attributes).width
-            label.draw(at: NSPoint(x: right - width, y: baseline - font.ascender), withAttributes: attributes)
+            (line == currentLine ? NSColor.labelColor : NSColor.tertiaryLabelColor).setFill()
+            let label = label(line + 1, font: font)
+            context.textPosition = CGPoint(x: right - label.width, y: baseline)
+            CTLineDraw(label.line, context)
             if let isFolded = markers[line] {
                 drawFoldArrow(folded: isFolded, baseline: baseline, font: font)
             }
