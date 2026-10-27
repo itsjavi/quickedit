@@ -35,6 +35,8 @@ final class SyntaxColorizer {
         generation += 1
         highlighter = nil
         pendingParse?.cancel()
+        parseTask?.cancel()  // its result is ignored (generation); the parse itself can't be interrupted
+        parseTask = nil
         clearColors()
         guard let text = liveText, language.hasHighlighting, text.length <= Self.maximumLength else { return }
         let current = generation
@@ -111,22 +113,60 @@ final class SyntaxColorizer {
     }
 
     private var pendingParse: DispatchWorkItem?
+    /// The catch-up reparse running off the main thread.
+    private var parseTask: Task<Void, Never>?
 
-    /// A large file's reparse waits until typing pauses; then what's visible is recoloured.
+    /// A large file's reparse waits until typing pauses; then it runs off the main thread and what's visible is
+    /// recoloured.
     private func schedulePendingParse() {
         pendingParse?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, let highlighter = self.highlighter, highlighter.hasPendingParse else { return }
-                highlighter.parsePending()
-                self.coloredRange = NSRange(location: NSNotFound, length: 0)
-                self.colorVisibleRange()
-                self.textView?.enclosingScrollView?.verticalRulerView?.needsDisplay = true  // fold arrows
-            }
+            MainActor.assumeIsolated { self?.startPendingParse() }
         }
         pendingParse = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
     }
+
+    /// One reparse at a time, on a snapshot: typing goes on meanwhile, and the edits are replayed onto the new
+    /// tree, which leaves a reparse pending for the next pause.
+    private func startPendingParse() {
+        guard parseTask == nil, let highlighter else { return }
+        let start = ContinuousClock.now
+        guard let job = highlighter.beginPendingParse() else { return }
+        #if DEBUG
+            catchUpTimings.append(ContinuousClock.now - start)
+        #endif
+        let current = generation
+        parseTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { job.run() }.value
+            self?.finishPendingParse(result, generation: current)
+        }
+    }
+
+    private func finishPendingParse(_ result: ParsedTree, generation current: Int) {
+        guard current == generation else { return }
+        parseTask = nil
+        guard let highlighter else { return }
+        let start = ContinuousClock.now
+        if highlighter.finishPendingParse(result) != nil {
+            coloredRange = NSRange(location: NSNotFound, length: 0)
+            colorVisibleRange()
+            textView?.enclosingScrollView?.verticalRulerView?.needsDisplay = true  // fold arrows
+            #if DEBUG
+                catchUpTimings.append(ContinuousClock.now - start)
+            #endif
+        }
+        // Edits made during the parse (or a failed parse) leave a reparse waiting.
+        if highlighter.hasPendingParse { schedulePendingParse() }
+    }
+
+    #if DEBUG
+        /// Main-thread time of each catch-up step (starting a reparse; installing it and recolouring), for
+        /// `debug/editor-bench`.
+        var catchUpTimings: [Duration] = []
+        /// A reparse is waiting, scheduled or running.
+        var isCatchingUp: Bool { parseTask != nil || highlighter?.hasPendingParse == true }
+    #endif
 
     private func scheduleRecolor() {
         guard !isRecolorScheduled else { return }

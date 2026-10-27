@@ -196,12 +196,14 @@ enum DebugHooks {
             guard let window = editor?.view.window else { return }
             if query["value"] == "0" { window.orderBack(nil) } else { window.orderFrontRegardless() }
         case "debug/editor-bench":
-            // Types `count` characters one by one into the middle of the open file, laying out and recolouring
-            // the visible range after each, and writes per-keystroke timings.
+            // Types `count` characters one by one into the middle of the open file (or at `location`), laying out
+            // and recolouring the visible range after each, and writes per-keystroke timings. `pause=1` then waits
+            // for the catch-up reparse after typing stops and adds its main-thread cost.
             guard let path = safePath(query["out"]), let editor else { return }
             let count = Int(query["count"] ?? "") ?? 200
             let textView = editor.textView!
-            let middle = (textView.string as NSString).length / 2
+            let middle = Int(query["location"] ?? "") ?? (textView.string as NSString).length / 2
+            editor.colorizer.catchUpTimings.removeAll()
             textView.setSelectedRange(NSRange(location: middle, length: 0))
             textView.scrollRangeToVisible(textView.selectedRange())
             var phases: [[Double]] = [[], [], [], []]
@@ -225,7 +227,19 @@ enum DebugHooks {
             let report = String(format: "keystrokes: %d\nmedian: %.2f ms\np95: %.2f ms\nmax: %.2f ms\ninsert+parse: %.2f\nlayout: %.2f\ncolor: %.2f\ndisplay: %.2f\nlength: %d\n", count,
                                 totals[totals.count / 2], totals[Int(Double(totals.count) * 0.95)], totals.last ?? 0,
                                 median(phases[0]), median(phases[1]), median(phases[2]), median(phases[3]), (textView.string as NSString).length)
-            try? report.write(toFile: path, atomically: true, encoding: .utf8)
+            guard query["pause"] == "1" else {
+                try? report.write(toFile: path, atomically: true, encoding: .utf8)
+                return
+            }
+            let colorizer: SyntaxColorizer = editor.colorizer
+            Task {
+                let deadline = ContinuousClock.now + .seconds(20)
+                while colorizer.isCatchingUp, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(20)) }
+                let timings = colorizer.catchUpTimings.map { Double($0.components.attoseconds) / 1e15 + Double($0.components.seconds) * 1000 }
+                let catchUp = String(format: "catchup-steps: %d\ncatchup-main-max: %.2f ms\ncatchup-done: %@\n", timings.count,
+                                     timings.max() ?? 0, colorizer.isCatchingUp ? "no" : "yes")
+                try? (report + catchUp).write(toFile: path, atomically: true, encoding: .utf8)
+            }
         case "debug/scroll-bench":
             // Scrolls from the top to the end in `step`-point jumps (a fast fling), drawing after each, and writes
             // per-step timings and how often the newly visible text had no layout yet.

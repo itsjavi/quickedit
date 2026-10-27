@@ -78,6 +78,24 @@ public final class SyntaxHighlighter {
         return engine.parsePending()
     }
 
+    /// Starts the waiting reparse as a job to run off the main thread (`PendingParse.run()`), then hand its result
+    /// to `finishPendingParse(_:)`. Meanwhile edits and queries go on as before, on the edited old tree. Nil when no
+    /// reparse is waiting (or the language doesn't defer).
+    public func beginPendingParse() -> PendingParse? {
+        engine.beginPendingParse()
+    }
+
+    /// Installs a background reparse, replaying the edits made since `beginPendingParse()` onto its tree (they
+    /// keep `hasPendingParse` set). Returns the ranges whose tokens may have changed, or nil when the result was
+    /// superseded (by a newer job, `setText` or a synchronous reparse) or the parse failed.
+    @discardableResult
+    public func finishPendingParse(_ result: ParsedTree) -> [NSRange]? {
+        guard let changed = engine.finishPendingParse(result) else { return nil }
+        recent.removeAll()
+        folds = nil
+        return changed
+    }
+
     /// Reports that `oldRange` (in the previous text) was replaced by `replacementLength` UTF-16 units, giving
     /// `newText`. Reparses incrementally and returns the sorted, merged ranges of `newText` whose tokens may have
     /// changed: the edited lines, tree-sitter's changed ranges and touched injections, plus the exact differences
@@ -241,11 +259,16 @@ protocol HighlightEngine: AnyObject {
     var hasPendingParse: Bool { get }
     /// Runs the waiting reparse; returns the ranges whose tokens may have changed.
     func parsePending() -> [NSRange]
+    /// The waiting reparse as a job for another thread (see `SyntaxHighlighter.beginPendingParse()`).
+    func beginPendingParse() -> PendingParse?
+    func finishPendingParse(_ result: ParsedTree) -> [NSRange]?
 }
 
 extension HighlightEngine {
     var hasPendingParse: Bool { false }
     func parsePending() -> [NSRange] { [] }
+    func beginPendingParse() -> PendingParse? { nil }
+    func finishPendingParse(_ result: ParsedTree) -> [NSRange]? { nil }
 }
 
 final class PlainTextEngine: HighlightEngine {

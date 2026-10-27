@@ -315,8 +315,10 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
   `ui/table-command?name=addRow:|insertRowAbove:|deleteSelectedRows:|addColumn:|deleteSelectedColumn:|toggleHeader:`
 - `ui/discard` (closes without saving or asking), `ui/front?value=1|0` (orders the window above others without
   activating, so WebKit paints for captures: agreed UI sessions only)
-- `debug/editor-bench?out=&count=` types into the middle of the open file and reports per-keystroke timings; build
-  with `OPTIMIZE=1 make test-app` (optimized debug build that keeps the hooks) for meaningful numbers;
+- `debug/editor-bench?out=&count=[&location=][&pause=1]` types into the middle of the open file (or at `location`) and
+  reports per-keystroke timings, and with `pause=1` the main-thread cost of the catch-up reparse after typing stops
+  (`catchup-main-max`); build with `OPTIMIZE=1 make test-app` (optimized debug build that keeps the hooks) for
+  meaningful numbers;
   `debug/scroll-bench?out=&step=` does the same for scrolling top to bottom in `step`-point jumps
 - `debug/state?out=/private/tmp/state.txt` writes a `key: value` state dump; `debug/preview?out=` dumps the preview
   page's text and computed colours; `debug/snapshot?out=` renders the editor in-process (PNG)

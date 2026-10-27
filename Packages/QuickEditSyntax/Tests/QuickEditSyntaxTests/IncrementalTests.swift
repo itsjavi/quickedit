@@ -275,6 +275,123 @@ struct IncrementalTests {
         }
     }
 
+    /// The editor's catch-up: the reparse runs on a snapshot off the main thread while typing goes on, and the edits
+    /// made meanwhile are replayed onto its tree. The job only reads copies, so running it after those edits is
+    /// equivalent to running it during them (`concurrentBackgroundParse` overlaps them for real).
+    @Test("background reparses catch up with a fresh parse, replaying the edits made meanwhile", arguments: documents)
+    func backgroundDeferredEdits(document: Document) async {
+        let language = LanguageRegistry.language(id: document.language)!
+        var generator = SeededGenerator(seed: UInt64(document.language.utf8.reduce(17) { $0 &* 31 &+ UInt64($1) }))
+        let highlighter = SyntaxHighlighter(language: language)
+        highlighter.deferredParseThreshold = .zero  // defer every edit
+        var text = document.source as NSString
+        highlighter.setText(text)
+        func edit() {
+            let location = Int.random(in: 0...text.length, using: &generator)
+            var range = NSRange(location: location, length: Int.random(in: 0...min(4, text.length - location), using: &generator))
+            range = text.rangeOfComposedCharacterSequences(for: range)
+            if range.length == 0, range.location < text.length {
+                range = NSRange(location: text.rangeOfComposedCharacterSequence(at: range.location).location, length: 0)
+            }
+            let insertion = Bool.random(using: &generator) ? document.snippets.randomElement(using: &generator)! : ""
+            let mutable = NSMutableString(string: text)
+            mutable.replaceCharacters(in: range, with: insertion)
+            text = mutable.copy() as! NSString
+            highlighter.applyEdit(replacing: range, with: (insertion as NSString).length, in: text)
+            _ = highlighter.tokens(in: NSRange(location: 0, length: text.length))
+        }
+        for step in 0..<120 {
+            edit()
+            guard step % 3 == 2, let job = highlighter.beginPendingParse() else { continue }  // nil: no tree-sitter
+            let during = Int.random(in: 0...3, using: &generator)
+            for _ in 0..<during { edit() }
+            let result = await Task.detached { job.run() }.value
+            #expect(highlighter.finishPendingParse(result) != nil)
+            #expect(highlighter.hasPendingParse == (during > 0))
+            highlighter.parsePending()
+            let fresh = SyntaxHighlighter(language: language)
+            fresh.setText(text)
+            let all = NSRange(location: 0, length: text.length)
+            let (tokens, expected) = (highlighter.tokens(in: all), fresh.tokens(in: all))
+            guard tokens == expected, highlighter.foldRanges() == fresh.foldRanges() else {
+                let mismatch = zip(tokens, expected).first { $0 != $1 }.map { "\($0.0) vs \($0.1)" } ?? "\(tokens.count) vs \(expected.count) tokens"
+                Issue.record("\(document.language) step \(step), \(during) edits during the parse: differs from a fresh parse (\(tokens == expected ? "folds" : mismatch))\n\(text)")
+                return
+            }
+        }
+    }
+
+    @Test("a background reparse superseded by setText or a newer one is ignored")
+    func staleBackgroundParse() {
+        let markdown = LanguageRegistry.language(id: "markdown")!
+        let highlighter = SyntaxHighlighter(language: markdown)
+        highlighter.deferredParseThreshold = .zero
+        var text = "# Title\n\nSome *text* and `code`.\n" as NSString
+        highlighter.setText(text)
+        func insert(_ string: String, at location: Int) {
+            let mutable = NSMutableString(string: text)
+            mutable.insert(string, at: location)
+            text = mutable.copy() as! NSString
+            highlighter.applyEdit(replacing: NSRange(location: location, length: 0), with: (string as NSString).length, in: text)
+        }
+        func matchesFreshParse() -> Bool {
+            let fresh = SyntaxHighlighter(language: markdown)
+            fresh.setText(text)
+            let all = NSRange(location: 0, length: text.length)
+            return highlighter.tokens(in: all) == fresh.tokens(in: all)
+        }
+
+        insert("x", at: 2)
+        let beforeSetText = highlighter.beginPendingParse()!
+        text = "Plain **bold** here\n" as NSString
+        highlighter.setText(text)
+        #expect(highlighter.finishPendingParse(beforeSetText.run()) == nil)
+        #expect(matchesFreshParse())
+
+        insert("_a_ ", at: 0)
+        let older = highlighter.beginPendingParse()!
+        insert("# ", at: 0)
+        let newer = highlighter.beginPendingParse()!
+        #expect(highlighter.finishPendingParse(older.run()) == nil)
+        #expect(highlighter.finishPendingParse(newer.run()) != nil)
+        #expect(!highlighter.hasPendingParse)
+        #expect(matchesFreshParse())
+    }
+
+    @Test("edits and queries while a large Markdown file reparses on another thread")
+    func concurrentBackgroundParse() async {
+        let markdown = LanguageRegistry.language(id: "markdown")!
+        let block = "## Section\n\nSome *emphasis*, `code` and a [link](https://example.com).\n\n- item one\n- item **two**\n\n```swift\nlet x = 1\n```\n\n"
+        var text = ("# Document\n\n" + String(repeating: block, count: 300_000 / block.utf16.count)) as NSString
+        let highlighter = SyntaxHighlighter(language: markdown)
+        highlighter.deferredParseThreshold = .zero
+        highlighter.setText(text)
+        var generator = SeededGenerator(seed: 41)
+        func edit() {
+            let location = Int.random(in: 0...text.length, using: &generator)
+            let insertion = ["*", "`", "\n", "# ", "x", "]("].randomElement(using: &generator)!
+            let mutable = NSMutableString(string: text)
+            mutable.insert(insertion, at: location)
+            text = mutable.copy() as! NSString
+            highlighter.applyEdit(replacing: NSRange(location: location, length: 0), with: (insertion as NSString).length, in: text)
+            _ = highlighter.tokens(in: NSRange(location: max(0, location - 2_000), length: min(4_000, text.length - max(0, location - 2_000))))
+        }
+        edit()
+        let job = highlighter.beginPendingParse()!
+        let running = Task.detached { job.run() }
+        for _ in 0..<40 { edit() }
+        #expect(highlighter.finishPendingParse(await running.value) != nil)
+        #expect(highlighter.hasPendingParse)
+        highlighter.parsePending()
+        let fresh = SyntaxHighlighter(language: markdown)
+        fresh.setText(text)
+        for start in stride(from: 0, to: text.length, by: text.length / 4) {
+            let range = NSRange(location: start, length: min(5_000, text.length - start))
+            #expect(highlighter.tokens(in: range) == fresh.tokens(in: range), "\(range)")
+        }
+        #expect(highlighter.foldRanges() == fresh.foldRanges())
+    }
+
     @Test("an edit far from the viewport reports a small range")
     func localInvalidation() {
         let lines = (0..<500).map { "const value\($0) = compute(\($0), \"text\");" }

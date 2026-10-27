@@ -33,6 +33,11 @@ final class TreeSitterEngine: HighlightEngine {
     var deferredParseThreshold: Duration?
     private var lastParseDuration: Duration = .zero
     private(set) var hasPendingParse = false
+    /// The background reparse in flight (`beginPendingParse`), and the root-tree edits made since its snapshot,
+    /// replayed onto its tree when it's installed.
+    private var inFlight: Int?
+    private var lastParseID = 0
+    private var editLog: [(edit: InputEdit, oldRange: NSRange, length: Int)] = []
 
     init(grammar: GrammarConfiguration, stylesheets: GrammarConfiguration? = nil) {
         self.grammar = grammar
@@ -52,6 +57,8 @@ final class TreeSitterEngine: HighlightEngine {
         // A full parse says little about incremental ones: those are timed from the first edit.
         lastParseDuration = .zero
         hasPendingParse = false
+        inFlight = nil
+        editLog = []
     }
 
     func rebind(_ text: NSString) {
@@ -75,6 +82,12 @@ final class TreeSitterEngine: HighlightEngine {
             newEndPoint: lines.point(at: range.upperBound))
     }
 
+    /// Edits the root tree, logging the edit while a background reparse is in flight.
+    private func edit(_ tree: MutableTree, _ edit: InputEdit, replacing oldRange: NSRange, with length: Int) {
+        tree.edit(edit)
+        if inFlight != nil { editLog.append((edit, oldRange, length)) }
+    }
+
     func applyEdit(replacing oldRange: NSRange, with replacementLength: Int, in newText: NSString) -> [NSRange] {
         guard let oldTree = tree else {
             setText(newText)
@@ -96,7 +109,7 @@ final class TreeSitterEngine: HighlightEngine {
 
         // Whole edited lines: predicates (`#match? "^[A-Z]"`) can change a token's kind beyond the typed text.
         var changed = [lines.lineRange(covering: NSRange(location: oldRange.location, length: replacementLength), length: newText.length)]
-        oldTree.edit(edit)
+        self.edit(oldTree, edit, replacing: oldRange, with: replacementLength)
         changed += injections.applyEdit(edit)
         if stylesheetGrammar != nil {
             // Opening or closing a <style> block blanks or reveals text away from the edit: report those spans
@@ -107,7 +120,7 @@ final class TreeSitterEngine: HighlightEngine {
                 old: old.contents, new: styles.contents, replacing: oldRange, with: replacementLength)
             {
                 let maskEdit = sameLengthEdit(over: range)
-                oldTree.edit(maskEdit)
+                self.edit(oldTree, maskEdit, replacing: range, with: range.length)
                 changed += injections.applyEdit(maskEdit)
                 changed.append(range)
             }
@@ -131,9 +144,44 @@ final class TreeSitterEngine: HighlightEngine {
     }
 
     func parsePending() -> [NSRange] {
-        guard hasPendingParse, let tree else { return [] }
+        guard let job = beginPendingParse() else { return [] }
+        return finishPendingParse(job.run()) ?? []
+    }
+
+    func beginPendingParse() -> PendingParse? {
+        guard hasPendingParse, let tree, let base = tree.copy() else { return nil }
+        lastParseID += 1
+        inFlight = lastParseID
+        editLog = []
+        let text = self.text
+        let length = text.length
+        let units = [unichar](unsafeUninitializedCapacity: length) { buffer, count in
+            if length > 0 { text.getCharacters(buffer.baseAddress!, range: NSRange(location: 0, length: length)) }
+            count = length
+        }
+        return PendingParse(
+            id: lastParseID, language: grammar.language, base: base, units: units,
+            masks: stylesheetGrammar != nil ? styles.contents : nil)
+    }
+
+    func finishPendingParse(_ result: ParsedTree) -> [NSRange]? {
+        guard result.id == inFlight else { return nil }
+        defer {
+            inFlight = nil
+            editLog = []
+        }
+        // A failed parse leaves the edited tree and the pending reparse as they were.
+        guard let installed = result.tree?.mutableCopy() else { return nil }
+        var changed = result.changed
+        for entry in editLog {
+            installed.edit(entry.edit)
+            changed = changed.map { SyntaxHighlighter.map($0, replacing: entry.oldRange, with: entry.length) }
+        }
+        tree = installed
+        lastParseDuration = result.duration
+        hasPendingParse = !editLog.isEmpty
         let all = NSRange(location: 0, length: text.length)
-        return normalized(reparse(tree).compactMap { $0.clipped(to: all) })
+        return normalized(changed.compactMap { $0.clipped(to: all) })
     }
 
     /// Parses the edited `oldTree` against the current text, timing it; returns tree-sitter's changed ranges.
@@ -147,6 +195,9 @@ final class TreeSitterEngine: HighlightEngine {
         }
         lastParseDuration = clock.now - start
         hasPendingParse = false
+        // This tree supersedes a background reparse's.
+        inFlight = nil
+        editLog = []
         return changed
     }
 

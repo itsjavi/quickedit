@@ -82,6 +82,47 @@ struct PerformanceTests {
         #expect(keystroke < Self.frameBudget, "keystroke took \(keystroke)")
     }
 
+    /// The editor's catch-up after typing pauses in a 2 MB Markdown file: the reparse itself runs off the main
+    /// thread, which only pays for the snapshot (`begin`) and for installing the tree (`finish`). Editing the
+    /// top-level heading re-parses the section that spans the whole file (~150 ms on the main thread before).
+    @Test("a 2 MB Markdown file's catch-up reparse costs the main thread under a frame")
+    func backgroundMarkdownReparse() async throws {
+        let block = """
+            ## Section
+
+            Some *emphasis*, `code`, a [link](https://example.com) and **bold** text in a paragraph.
+
+            - item one
+            - item **two**
+
+            ```swift
+            let value = compute(1, "text")
+            ```
+
+            """
+        var text = ("# Document\n\n" + String(repeating: block, count: 2_000_000 / block.utf16.count)) as NSString
+        let highlighter = SyntaxHighlighter(language: LanguageRegistry.language(id: "markdown")!)
+        highlighter.deferredParseThreshold = .zero
+        highlighter.setText(text)
+        let clock = ContinuousClock()
+        for (name, location) in [("middle", text.length / 2), ("heading", 2)] {
+            let mutable = NSMutableString(string: text)
+            mutable.insert("x", at: location)
+            text = mutable.copy() as! NSString
+            highlighter.applyEdit(replacing: NSRange(location: location, length: 0), with: 1, in: text)
+            var job: PendingParse?
+            let begin = clock.measure { job = highlighter.beginPendingParse() }
+            let pending = try #require(job)
+            let result = await Task.detached { pending.run() }.value
+            var changed: [NSRange]?
+            let finish = clock.measure { changed = highlighter.finishPendingParse(result) }
+            #expect(changed != nil)
+            print("PERF markdown-catch-up \(name) units=\(text.length) begin=\(begin) run=\(result.duration) finish=\(finish)")
+            #expect(begin < Self.frameBudget, "begin took \(begin)")
+            #expect(finish < Self.frameBudget, "finish took \(finish)")
+        }
+    }
+
     /// One frame in optimized builds (measured ~1 ms per screenful, ~3.5 ms per keystroke on Apple silicon); debug
     /// builds compile the parsers without optimization and run beside the other suites, so they only get a sanity
     /// bound.
