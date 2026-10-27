@@ -70,7 +70,8 @@ for byte as it came in, except what you changed. There's nothing to configure an
   touches, so quoting, the delimiter and line endings stay as they were, and ⌘Z undoes it. Files over 25 MB open
   as text only.
 - **Lines.** Line numbers, current-line highlight, Go to Line (⌘L), move lines (⌃⌘↑/↓), duplicate (⇧⌘D), delete
-  (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off.
+  (⌃⇧K), join (⌃J), sort, indent/outdent (⌘] / ⌘[) and toggle comment (⌘/). Soft wrap on or off, and the status
+  bar can be hidden (View › Show Status Bar).
 - **Code folding** for every language with a tree-sitter grammar (JSON, YAML, CSS, JS/TS, C/C++, Swift, Python,
   Markdown, HTML, XML…), from the gutter or View › Folding (⌥⌘← / ⌥⌘→, all with ⇧). Folding never changes the file;
   editing inside a fold, finding text in it or going to one of its lines opens it.

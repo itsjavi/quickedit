@@ -118,6 +118,7 @@ enum MainMenu {
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
         menu.addItem(item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]))
+        menu.addItem(item("Show Status Bar", #selector(AppDelegate.toggleStatusBar(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Show Line Numbers", #selector(AppDelegate.toggleLineNumbers(_:))))
         menu.addItem(item("Show Invisible Characters", #selector(AppDelegate.toggleInvisibles(_:)), "i", [.command, .option]))

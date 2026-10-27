@@ -304,7 +304,7 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
 - `ui/disk-change?action=check|reload|keep` (the window-key check for changes on disk, and the bar's buttons)
 - `ui/type?text=`, `ui/select?location=&length=`, `ui/goto-line?line=`
 - `ui/command?name=` (editor and menu commands by selector name, e.g. `moveLineUp:`, `toggleComment:`)
-- `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|font-size|file-icons&value=` (`file-icons`: `material|finder`)
+- `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|status-bar|font-size|file-icons&value=` (`file-icons`: `material|finder`)
 - `ui/voice-start?seconds=|from=` (recorder with the microphone replaced by a tone or clip), `ui/voice-stop`, `ui/voice-cancel`,
   `ui/transcript?src=&text=` (inserts a transcript like the sheet's Insert)
 - `ui/indentation?style=tabs|spaces&width=[&convert=1]`, `ui/line-endings?value=lf|crlf|cr`, `ui/language?id=` (empty = detect)

@@ -82,6 +82,7 @@ extension Notification.Name {
         static let showInvisibles = "showInvisibles"
         static let wrapLines = "wrapLines"
         static let highlightCurrentLine = "highlightCurrentLine"
+        static let showStatusBar = "showStatusBar"
         static let trimTrailingWhitespace = "trimTrailingWhitespace"
         static let insertFinalNewline = "insertFinalNewline"
         static let useEditorConfig = "useEditorConfig"
@@ -106,6 +107,7 @@ extension Notification.Name {
     var showInvisibles: Bool { didSet { store(showInvisibles, Key.showInvisibles) } }
     var wrapLines: Bool { didSet { store(wrapLines, Key.wrapLines) } }
     var highlightCurrentLine: Bool { didSet { store(highlightCurrentLine, Key.highlightCurrentLine) } }
+    var showStatusBar: Bool { didSet { store(showStatusBar, Key.showStatusBar) } }
     var trimTrailingWhitespace: Bool { didSet { store(trimTrailingWhitespace, Key.trimTrailingWhitespace) } }
     var insertFinalNewline: Bool { didSet { store(insertFinalNewline, Key.insertFinalNewline) } }
     var useEditorConfig: Bool { didSet { store(useEditorConfig, Key.useEditorConfig) } }
@@ -129,6 +131,7 @@ extension Notification.Name {
             Key.showInvisibles: false,
             Key.wrapLines: true,
             Key.highlightCurrentLine: true,
+            Key.showStatusBar: true,
             Key.trimTrailingWhitespace: false,
             Key.insertFinalNewline: false,
             Key.useEditorConfig: true,
@@ -147,6 +150,7 @@ extension Notification.Name {
         showInvisibles = defaults.bool(forKey: Key.showInvisibles)
         wrapLines = defaults.bool(forKey: Key.wrapLines)
         highlightCurrentLine = defaults.bool(forKey: Key.highlightCurrentLine)
+        showStatusBar = defaults.bool(forKey: Key.showStatusBar)
         trimTrailingWhitespace = defaults.bool(forKey: Key.trimTrailingWhitespace)
         insertFinalNewline = defaults.bool(forKey: Key.insertFinalNewline)
         useEditorConfig = defaults.bool(forKey: Key.useEditorConfig)

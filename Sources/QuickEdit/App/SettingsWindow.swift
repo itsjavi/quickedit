@@ -68,6 +68,7 @@ struct GeneralSettingsView: View {
                 Toggle("Highlight current line", isOn: $settings.highlightCurrentLine)
                 Toggle("Wrap lines", isOn: $settings.wrapLines)
                 Toggle("Show invisible characters", isOn: $settings.showInvisibles)
+                Toggle("Show status bar", isOn: $settings.showStatusBar)
             }
             Section {
                 Picker("Indent using", selection: $settings.indentWithTabs) {

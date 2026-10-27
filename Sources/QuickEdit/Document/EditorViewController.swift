@@ -267,6 +267,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         textView.isEditable = !state.isReadOnly
         textView.isSelectable = true
         textView.highlightsCurrentLine = settings.highlightCurrentLine
+        statusBar.isHidden = !settings.showStatusBar
         layoutManager.showsInvisibles = settings.showInvisibles
         applyLineNumbers(settings.showLineNumbers)
         // Wrapping sizes the text view to the text area, which the line numbers inset; both relayout all the text,

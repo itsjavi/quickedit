@@ -321,6 +321,7 @@ enum DebugHooks {
         case "invisibles": settings.showInvisibles = on
         case "wrap": settings.wrapLines = on
         case "current-line": settings.highlightCurrentLine = on
+        case "status-bar": settings.showStatusBar = on
         case "font-size": if let size = Double(query["value"] ?? "") { settings.fontSize = size }
         case "file-icons": if let style = FileIconStyle(rawValue: query["value"] ?? "") { settings.fileIcons = style }
         default: break
@@ -402,7 +403,7 @@ enum DebugHooks {
             lines.append("\(prefix).lineEnding: \(state.lineEnding.displayName)\(state.hasMixedLineEndings ? " mixed" : "")")
             lines.append("\(prefix).risky: \(state.riskyCount)")
             lines.append("\(prefix).readOnly: \(state.readOnlyReason ?? "no")")
-            lines.append("\(prefix).diskChange: \(state.diskChange?.rawValue ?? "none")")
+            lines.append("\(prefix).diskChange: \(state.diskChange?.rawValue ?? "none") statusBar=\(AppSettings.shared.showStatusBar)")
             if let table = editor.tableController, state.showsTable {
                 lines.append("\(prefix).table: rows=\(table.rowCount) columns=\(table.columnCount) header=\(table.firstRowIsHeader)")
             }

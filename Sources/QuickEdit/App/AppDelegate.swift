@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc func toggleInvisibles(_ sender: Any?) { settings.showInvisibles.toggle() }
     @objc func toggleWrapLines(_ sender: Any?) { settings.wrapLines.toggle() }
     @objc func toggleCurrentLineHighlight(_ sender: Any?) { settings.highlightCurrentLine.toggle() }
+    @objc func toggleStatusBar(_ sender: Any?) { settings.showStatusBar.toggle() }
 
     @objc func setAppearanceMode(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let mode = AppearanceMode(rawValue: raw) { settings.appearance = mode }
@@ -108,6 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case #selector(toggleInvisibles(_:)): menuItem.state = settings.showInvisibles ? .on : .off
         case #selector(toggleWrapLines(_:)): menuItem.state = settings.wrapLines ? .on : .off
         case #selector(toggleCurrentLineHighlight(_:)): menuItem.state = settings.highlightCurrentLine ? .on : .off
+        case #selector(toggleStatusBar(_:)): menuItem.state = settings.showStatusBar ? .on : .off
         case #selector(setAppearanceMode(_:)):
             menuItem.state = (menuItem.representedObject as? String) == settings.appearance.rawValue ? .on : .off
         default: break
