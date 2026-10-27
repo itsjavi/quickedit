@@ -23,7 +23,7 @@ fi
 if [ -z "${NOTARY_PROFILE:-}" ]; then missing+=("NOTARY_PROFILE (a notarytool Keychain profile)"); fi
 if [ ! -s Resources/SparklePublicKey.txt ] && [ -z "${SPARKLE_PUBLIC_KEY:-}" ]; then missing+=("Resources/SparklePublicKey.txt (Sparkle's public key: without it the app can't update itself)"); fi
 
-SIGN_IDENTITY="${DEVELOPER_ID:--}" ./scripts/build-app.sh release
+ARCH=arm64 SIGN_IDENTITY="${DEVELOPER_ID:--}" ./scripts/build-app.sh release
 
 VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")"

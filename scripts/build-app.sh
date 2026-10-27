@@ -3,7 +3,8 @@
 # Usage: scripts/build-app.sh [release|dev|test]
 #   SIGN_IDENTITY="Developer ID Application: …"   # sign with a real identity: hardened runtime + secure timestamp
 #                                                 # (default: ad-hoc; scripts/release.sh sets it)
-#   VERSION=1.2.3 BUILD=456                       # override ./VERSION and the commit-count build number
+#   ARCH=arm64                                    # build for one architecture (default: this Mac's)
+#   VERSION=1.2.3 BUILD=456                      # override ./VERSION and the commit-count build number
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,6 +26,7 @@ QL_EXTENSIONS=(QuickEditQuickLook:Info.plist:quicklook QuickEditThumbnail:Thumbn
 
 # OPTIMIZE=1 optimizes a debug (Dev/Test) build, keeping its DEBUG hooks, for performance measurements.
 SWIFT_FLAGS=(-c "$CONFIG" --disable-keychain)  # never a Keychain prompt when packages download
+if [[ -n "${ARCH:-}" ]]; then SWIFT_FLAGS+=(--arch "$ARCH"); fi
 if [[ -n "${OPTIMIZE:-}" && "$CONFIG" == "debug" ]]; then
   SWIFT_FLAGS+=(-Xswiftc -O -Xcc -O2 --scratch-path .build/optimized-debug)
 fi
@@ -38,9 +40,22 @@ PLIST="$APP/Contents/Info.plist"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
+# SwiftPM also adds this checkout's build folder as an rpath; the bundle only needs @-relative ones.
+strip_build_rpaths() {
+  otool -l "$1" | awk '/LC_RPATH/ { getline; getline; print $2 }' | { grep '^/' || true; } |
+    while read -r path; do install_name_tool -delete_rpath "$path" "$1" 2>/dev/null; done
+}
 # Sparkle (updates); ditto keeps the framework's symlinks.
 ditto "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+# Sparkle ships universal; a one-architecture build keeps only that slice (signed again below).
+if [[ -n "${ARCH:-}" ]]; then
+  find "$APP/Contents/Frameworks/Sparkle.framework" -type f -perm -u+x | while read -r binary; do
+    archs="$(lipo -archs "$binary" 2>/dev/null || true)"
+    if [[ " $archs " == *" $ARCH "* && "$archs" != "$ARCH" ]]; then lipo -thin "$ARCH" "$binary" -output "$binary"; fi
+  done
+fi
 cp "$BIN/QuickEdit" "$APP/Contents/MacOS/QuickEdit"
+strip_build_rpaths "$APP/Contents/MacOS/QuickEdit"
 cp Resources/Info.plist "$PLIST"
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/"
 # File and folder icons for the sidebar and Quick Open (scripts/vendor-material-icons.sh).
@@ -94,6 +109,7 @@ if [[ "$QUICKLOOK" == "1" ]]; then
     APPEX="$APP/Contents/PlugIns/$PRODUCT.appex"
     mkdir -p "$APPEX/Contents/MacOS"
     cp "$BIN/$PRODUCT" "$APPEX/Contents/MacOS/$PRODUCT"
+    strip_build_rpaths "$APPEX/Contents/MacOS/$PRODUCT"
     cp "Resources/QuickLook/$INFO" "$APPEX/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.$SUFFIX" "$APPEX/Contents/Info.plist"
     for key in CFBundleShortVersionString CFBundleVersion; do
