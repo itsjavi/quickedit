@@ -101,14 +101,23 @@ final class TreeSitterEngine: HighlightEngine {
         if stylesheetGrammar != nil {
             // Opening or closing a <style> block blanks or reveals text away from the edit: report those spans
             // to tree-sitter as same-length replacements.
-            let oldContents = styles.contents
+            let old = styles
             styles = StyleScan.scan(newText)
             for range in StyleScan.maskChanges(
-                old: oldContents, new: styles.contents, replacing: oldRange, with: replacementLength)
+                old: old.contents, new: styles.contents, replacing: oldRange, with: replacementLength)
             {
                 let maskEdit = sameLengthEdit(over: range)
                 oldTree.edit(maskEdit)
                 changed += injections.applyEdit(maskEdit)
+                changed.append(range)
+            }
+            // The stylesheet layers read `$references` neutralized, so a reference that appears or goes away
+            // (an unterminated `/*` hides every later one in its block) changes their text away from the edit.
+            // The host tree sees those spans blanked either way: only the layers are told.
+            for range in StyleScan.maskChanges(
+                old: old.references, new: styles.references, replacing: oldRange, with: replacementLength)
+            {
+                changed += injections.applyEdit(sameLengthEdit(over: range))
                 changed.append(range)
             }
         }

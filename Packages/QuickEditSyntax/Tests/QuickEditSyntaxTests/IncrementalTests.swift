@@ -269,13 +269,7 @@ struct IncrementalTests {
             let (tokens, expected) = (highlighter.tokens(in: all), fresh.tokens(in: all))
             guard tokens == expected, highlighter.foldRanges() == fresh.foldRanges() else {
                 let mismatch = zip(tokens, expected).first { $0 != $1 }.map { "\($0.0) vs \($0.1)" } ?? "\(tokens.count) vs \(expected.count) tokens"
-                let message: Comment = "\(document.language) step \(step): differs from a fresh parse (\(tokens == expected ? "folds" : mismatch)) after replacing \(range) with \(insertion.debugDescription)\n\(text)"
-                if ["stsx", "sjsx"].contains(document.language) {
-                    // Also without deferral: stale <style> masks after comment edits in mangled text (TASK-39).
-                    withKnownIssue("TASK-39", isIntermittent: true) { Issue.record(message) }
-                } else {
-                    Issue.record(message)
-                }
+                Issue.record("\(document.language) step \(step): differs from a fresh parse (\(tokens == expected ? "folds" : mismatch)) after replacing \(range) with \(insertion.debugDescription)\n\(text)")
                 return
             }
         }

@@ -235,4 +235,27 @@ struct LumioseTests {
         #expect(all(closed) == fresh.tokens(in: NSRange(location: 0, length: closed.length)))
         #expect(all(closed).first { $0.range == constRange }?.kind == .keyword)
     }
+
+    /// An unterminated `/*` hides the `$references` after it from the scan, which changes the stylesheet layer's
+    /// text (no longer neutralized) far from the edit (TASK-39).
+    @Test(
+        "a comment opener that hides references re-highlights the stylesheet like a fresh parse",
+        arguments: [
+            ("<style>\n.a { gap: $s; }\n</style>\n", 8),
+            ("<style>\n  .a { color: red; }\n  .b { gap: $theme.space.lg; }\n</style>\n", 10),
+        ])
+    func referenceEdits(source: String, insertAt: Int) {
+        let language = LanguageRegistry.language(id: "stsx")!
+        let highlighter = SyntaxHighlighter(language: language)
+        let text = source as NSString
+        highlighter.setText(text)
+        _ = highlighter.tokens(in: NSRange(location: 0, length: text.length))  // caches the CSS layer
+        let edited = NSMutableString(string: text)
+        edited.insert("/*", at: insertAt)
+        _ = highlighter.applyEdit(replacing: NSRange(location: insertAt, length: 0), with: 2, in: edited)
+        let fresh = SyntaxHighlighter(language: language)
+        fresh.setText(edited.copy() as! NSString)
+        let all = NSRange(location: 0, length: edited.length)
+        #expect(highlighter.tokens(in: all) == fresh.tokens(in: all))
+    }
 }

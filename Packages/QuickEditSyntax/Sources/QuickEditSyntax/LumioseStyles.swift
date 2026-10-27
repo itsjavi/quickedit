@@ -73,7 +73,8 @@ struct StyleScan: Equatable {
     }
 
     /// Ranges of the new text whose blanking changed, other than the edited text itself: a typed `</style>` or a
-    /// deleted `<style` re-blanks or reveals code far from the edit, which tree-sitter must be told about.
+    /// deleted `<style` re-blanks or reveals code far from the edit, which tree-sitter must be told about. Works
+    /// for any per-unit mask, e.g. `references` (neutralized in the stylesheet layers).
     static func maskChanges(old: [NSRange], new: [NSRange], replacing oldRange: NSRange, with length: Int) -> [NSRange] {
         let delta = length - oldRange.length
         var before = IndexSet()
