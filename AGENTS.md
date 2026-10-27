@@ -301,6 +301,7 @@ only against files under `/private/tmp` or `/private/var/folders`. Add `doc=<pat
 (default: the frontmost document).
 
 - `ui/open?path=`, `ui/new?text=`, `ui/close`, `ui/save`, `ui/window-size?w=&h=`, `ui/appearance?value=system|light|dark`
+- `ui/disk-change?action=check|reload|keep` (the window-key check for changes on disk, and the bar's buttons)
 - `ui/type?text=`, `ui/select?location=&length=`, `ui/goto-line?line=`
 - `ui/command?name=` (editor and menu commands by selector name, e.g. `moveLineUp:`, `toggleComment:`)
 - `ui/mode?value=edit|split|preview`, `ui/remote-content?value=0|1`, `ui/setting?name=line-numbers|invisibles|wrap|current-line|font-size|file-icons&value=` (`file-icons`: `material|finder`)

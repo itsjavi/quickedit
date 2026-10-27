@@ -65,6 +65,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     var sidebar: FolderSidebarViewController? { (contentViewController as? FolderSplitViewController)?.sidebar }
 
     func windowDidBecomeKey(_ notification: Notification) {
+        (document as? TextDocument)?.checkForChangesOnDisk()
         sidebar?.reloadIfNeeded()
         if let url = (document as? NSDocument)?.fileURL { sidebar?.reveal(url, select: true) }
     }

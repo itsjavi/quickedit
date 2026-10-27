@@ -36,7 +36,11 @@ final class TextDocument: NSDocument {
     private var readingURL: URL?
 
     nonisolated override func read(from url: URL, ofType typeName: String) throws {
-        MainActor.assumeIsolated { readingURL = url }
+        let number = Self.fileNumber(of: url)
+        MainActor.assumeIsolated {
+            readingURL = url
+            presentedFileNumber = number
+        }
         defer { MainActor.assumeIsolated { readingURL = nil } }
         try super.read(from: url, ofType: typeName)
     }
@@ -128,6 +132,11 @@ final class TextDocument: NSDocument {
         super.save(to: url, ofType: typeName, for: saveOperation) { [weak self] error in
             // An untitled file saved as notes.csv now has a language, a preview or a table.
             if error == nil, isNewName { self?.editor?.updateLanguage() }
+            // What's on disk is this window's text again (a deleted file is back, a changed one overwritten).
+            if error == nil, saveOperation != .autosaveElsewhereOperation {
+                self?.setDiskChange(nil)
+                self?.followFileAtPath()
+            }
             completionHandler(error)
         }
     }
@@ -137,40 +146,139 @@ final class TextDocument: NSDocument {
     nonisolated override func presentedItemDidChange() {
         super.presentedItemDidChange()
         DispatchQueue.main.async {
-            MainActor.assumeIsolated { self.fileDidChangeOnDisk() }
+            MainActor.assumeIsolated { self.checkForChangesOnDisk() }
         }
     }
 
-    /// Another app changed the file: reload when there are no unsaved edits, otherwise let the user choose.
-    private func fileDidChangeOnDisk() {
-        guard let url = fileURL, let type = fileType, let known = fileModificationDate,
-              let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
-              modified > known, !isAskingAboutDiskChange
-        else { return }
-        guard isDocumentEdited else {
-            try? revert(toContentsOf: url, ofType: type)
+    /// Compares the file on disk with the version this window last read or saved (decision-3). Without unsaved
+    /// edits a change reloads at once; with them nothing is replaced and the bar above the editor lets the user
+    /// choose. Runs on file-presenter notices and whenever the window becomes key, which also catches changes whose
+    /// notice never came. Never shows a dialog: another app (or an agent) may be rewriting the file repeatedly.
+    func checkForChangesOnDisk() {
+        guard let url = fileURL, let known = fileModificationDate else { return }
+        guard let modified = Self.diskModificationDate(of: url) else {
+            if !FileManager.default.fileExists(atPath: url.path) { setDiskChange(.deleted) }
             return
         }
-        let window = windowControllers.first?.window
-        isAskingAboutDiskChange = true
-        let alert = NSAlert()
-        alert.messageText = "“\(displayName ?? "This file")” changed on disk."
-        alert.informativeText = "Another app changed the file while you have unsaved edits here."
-        alert.addButton(withTitle: "Keep My Edits")
-        alert.addButton(withTitle: "Reload from Disk")
-        Dialogs.show(alert, for: window) { [weak self] response in
-            guard let self else { return }
-            isAskingAboutDiskChange = false
-            if response == .alertSecondButtonReturn {
-                try? revert(toContentsOf: url, ofType: type)
-            } else {
-                // The user chose their version: the next save overwrites the disk one without asking again.
-                fileModificationDate = modified
-            }
+        // Any other date, not just a later one: `cp -p`, `git stash` and backups bring back older versions.
+        followFileAtPath()
+        guard modified != known else {
+            if state.diskChange == .deleted { setDiskChange(nil) }
+            return
+        }
+        // Touched, or rewritten with the same bytes: nothing to reload, and reloading would clear Undo.
+        if diskHolds(textOf: url) {
+            fileModificationDate = modified
+            setDiskChange(nil)
+            return
+        }
+        if isDocumentEdited {
+            setDiskChange(.modified)
+        } else {
+            reloadFromDisk(presentingErrors: false)
         }
     }
 
-    private var isAskingAboutDiskChange = false
+    /// Reads the file again, keeping the caret and scroll position. Undo puts back the text that was showing, so
+    /// neither an automatic reload nor the bar's Reload can lose edits.
+    func reloadFromDisk(presentingErrors: Bool = true) {
+        guard let url = fileURL, let type = fileType else { return }
+        let previous = textStorage.string
+        let read = { try self.revert(toContentsOf: url, ofType: type) }
+        do {
+            if let editor { try editor.keepingViewport(read) } else { try read() }
+        } catch {
+            // It may not be text anymore: keep what's showing and say the file changed.
+            setDiskChange(FileManager.default.fileExists(atPath: url.path) ? .modified : .deleted)
+            if presentingErrors, let window = windowForSheet {
+                presentError(error, modalFor: window, delegate: nil, didPresent: nil, contextInfo: nil)
+            }
+            return
+        }
+        setDiskChange(nil)
+        // Older undo steps refer to the replaced text.
+        undoManager?.removeAllActions()
+        guard previous != textStorage.string, let undoManager, undoManager.groupingLevel == 0 else { return }
+        // Its own top-level group, so the reload is one Undo step. Registering it counts as a change; clearing the
+        // count afterwards keeps the reloaded text clean, and Undo makes the document edited again.
+        let groupsByEvent = undoManager.groupsByEvent
+        undoManager.groupsByEvent = false
+        undoManager.beginUndoGrouping()
+        let reloaded = textStorage.string
+        undoManager.registerUndo(withTarget: self) { document in
+            MainActor.assumeIsolated { document.swapReloadedText(previous, back: reloaded) }
+        }
+        undoManager.setActionName("Reload from Disk")
+        undoManager.endUndoGrouping()
+        undoManager.groupsByEvent = groupsByEvent
+        updateChangeCount(.changeCleared)
+    }
+
+    /// Undo and Redo of a reload: puts `text` in place of the whole text and registers the way back. It edits the
+    /// storage directly, because the text view's own undo record, made while undoing, keeps the old length and
+    /// redoes only part of the text.
+    private func swapReloadedText(_ text: String, back other: String) {
+        editor?.textView.breakUndoCoalescing()
+        let replace = { self.textStorage.replaceCharacters(in: NSRange(location: 0, length: self.textStorage.length), with: text) }
+        if let editor { editor.keepingViewport(replace) } else { replace() }
+        undoManager?.registerUndo(withTarget: self) { document in
+            MainActor.assumeIsolated { document.swapReloadedText(other, back: text) }
+        }
+        undoManager?.setActionName("Reload from Disk")
+    }
+
+    /// Save also writes a file that was deleted on disk when there's nothing unsaved, which NSDocument skips.
+    override func save(_ sender: Any?) {
+        guard state.diskChange == .deleted, !isDocumentEdited, let url = fileURL, let type = fileType else {
+            return super.save(sender)
+        }
+        save(to: url, ofType: type, for: .saveOperation) { [weak self] error in
+            guard let self, let error, let window = windowForSheet else { return }
+            presentError(error, modalFor: window, delegate: nil, didPresent: nil, contextInfo: nil)
+        }
+    }
+
+    /// Keeps the unsaved edits over the changed file: the next save overwrites it without asking again.
+    func keepEditsOverDiskChange() {
+        if let url = fileURL, let modified = Self.diskModificationDate(of: url) { fileModificationDate = modified }
+        setDiskChange(nil)
+    }
+
+    /// The file (inode) the presenter follows. One that was deleted keeps the presenter attached and deaf to the
+    /// file now at its path, which is how git and many tools replace files.
+    private var presentedFileNumber: Int?
+
+    /// Re-attaches the presenter when the file at the path is another one than it follows.
+    private func followFileAtPath() {
+        guard let url = fileURL, let number = Self.fileNumber(of: url), number != presentedFileNumber else { return }
+        if presentedFileNumber != nil {
+            NSFileCoordinator.removeFilePresenter(self)
+            NSFileCoordinator.addFilePresenter(self)
+        }
+        presentedFileNumber = number
+    }
+
+    private func setDiskChange(_ change: DiskChange?) {
+        guard state.diskChange != change else { return }
+        state.diskChange = change
+        editor?.diskChangeDidChange()
+    }
+
+    /// The file holds exactly what saving this window would write.
+    private func diskHolds(textOf url: URL) -> Bool {
+        guard let type = fileType, let disk = try? Data(contentsOf: url, options: .mappedIfSafe),
+              let mine = try? data(ofType: type) else { return false }
+        return disk == mine
+    }
+
+    /// Read fresh each time: URL resource values can be cached.
+    private nonisolated static func diskModificationDate(of url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
+
+    private nonisolated static func fileNumber(of url: URL) -> Int? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.systemFileNumber] as? Int
+    }
 
     // MARK: Writing
 

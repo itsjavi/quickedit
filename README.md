@@ -56,6 +56,9 @@ for byte as it came in, except what you changed. There's nothing to configure an
   - invisible and look-alike characters (zero-width, bidirectional controls, unusual spaces, stray BOMs) are always
     marked in orange and counted in the status bar; Show Invisible Characters (⌥⌘I) draws spaces, tabs and line
     endings;
+  - a file another app changes reloads by itself when you have no unsaved edits, and ⌘Z brings back what was
+    showing; with unsaved edits a bar above the text offers Reload or Keep My Edits, and nothing is replaced until you
+    choose;
   - smart quotes, dashes, autocorrect and spell checking are off;
   - files that can't be decoded exactly open read-only, binary property lists open read-only as XML with a Convert to
     XML button, and binary files are refused.

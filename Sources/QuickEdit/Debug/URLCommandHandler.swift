@@ -44,6 +44,14 @@ enum DebugHooks {
             editor?.view.window?.performClose(nil)
         case "ui/save":
             editor?.document.save(nil)
+        case "ui/disk-change":
+            // The bar's buttons, and the check a window runs when it becomes key (Test windows never do).
+            switch query["action"] {
+            case "check": editor?.document.checkForChangesOnDisk()
+            case "reload": editor?.document.reloadFromDisk()
+            case "keep": editor?.document.keepEditsOverDiskChange()
+            default: break
+            }
         case "ui/window-size":
             guard let window = editor?.view.window, let width = Double(query["w"] ?? ""), let height = Double(query["h"] ?? "") else { return }
             window.setContentSize(NSSize(width: width, height: height))
@@ -394,6 +402,7 @@ enum DebugHooks {
             lines.append("\(prefix).lineEnding: \(state.lineEnding.displayName)\(state.hasMixedLineEndings ? " mixed" : "")")
             lines.append("\(prefix).risky: \(state.riskyCount)")
             lines.append("\(prefix).readOnly: \(state.readOnlyReason ?? "no")")
+            lines.append("\(prefix).diskChange: \(state.diskChange?.rawValue ?? "none")")
             if let table = editor.tableController, state.showsTable {
                 lines.append("\(prefix).table: rows=\(table.rowCount) columns=\(table.columnCount) header=\(table.firstRowIsHeader)")
             }

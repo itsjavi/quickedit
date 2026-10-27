@@ -10,6 +10,14 @@ enum IndentationSource: String {
     case manual = "Set for this file"
 }
 
+/// What happened to the file on disk that the window can't resolve by itself (shown in a bar above the editor).
+enum DiskChange: String {
+    /// Another app changed the file while this window has unsaved edits.
+    case modified
+    /// The file is gone; the text is still here and saving writes it back.
+    case deleted
+}
+
 /// Per-document facts the status bar shows and changes.
 @Observable final class EditorState {
     var line = 1
@@ -49,6 +57,7 @@ enum IndentationSource: String {
     var transcribeSource: String?
     /// The audio file behind `transcribeSource`.
     var transcribeURL: URL?
+    var diskChange: DiskChange?
 
     var isReadOnly: Bool { readOnlyReason != nil }
 }

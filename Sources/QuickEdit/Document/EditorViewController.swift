@@ -11,6 +11,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
     private var layoutManager: EditorLayoutManager!
     private(set) var ruler: LineNumberRulerView?
     private var splitView: NSSplitView!
+    private var statusBar: NSView!
+    private var diskChangeBar: NSView!
     private var previewHost: NSView?
     private(set) var tableController: TableEditorViewController?
     var editorLayoutManager: EditorLayoutManager { layoutManager }
@@ -79,27 +81,30 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
 
         let statusBar = NSHostingView(rootView: StatusBarView(state: state, controller: self))
         statusBar.translatesAutoresizingMaskIntoConstraints = false
+        self.statusBar = statusBar
+        let diskChangeBar = NSHostingView(rootView: DiskChangeBar(state: state, document: document))
+        diskChangeBar.translatesAutoresizingMaskIntoConstraints = false
+        diskChangeBar.isHidden = true
+        self.diskChangeBar = diskChangeBar
 
         let splitView = NSSplitView()
         splitView.isVertical = true
         splitView.dividerStyle = .thin
         splitView.translatesAutoresizingMaskIntoConstraints = false
+        splitView.setContentHuggingPriority(.init(1), for: .vertical)
         scrollView.translatesAutoresizingMaskIntoConstraints = true
         splitView.addArrangedSubview(scrollView)
         self.splitView = splitView
 
-        let root = NSView()
-        root.addSubview(splitView)
-        root.addSubview(statusBar)
+        // Hidden bars leave the stack, so the editor takes their space.
+        let root = NSStackView(views: [diskChangeBar, splitView, statusBar])
+        root.orientation = .vertical
+        root.spacing = 0
+        root.distribution = .fill
+        for bar in root.arrangedSubviews { bar.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true }
         NSLayoutConstraint.activate([
-            splitView.topAnchor.constraint(equalTo: root.topAnchor),
-            splitView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            splitView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            splitView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
-            statusBar.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            statusBar.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            statusBar.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             statusBar.heightAnchor.constraint(equalToConstant: StatusBarView.height),
+            diskChangeBar.heightAnchor.constraint(equalToConstant: DiskChangeBar.height),
         ])
         view = root
 
@@ -373,6 +378,22 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, NSTextSt
         updateRiskyCount()
         layoutManager.setFoldedRanges([])
         updateLanguage()
+    }
+
+    /// Shows or hides the bar about the file on disk (`state.diskChange`).
+    func diskChangeDidChange() {
+        diskChangeBar?.isHidden = state.diskChange == nil
+    }
+
+    /// Runs `change` (a reload from disk) and puts the caret and the scroll position back where they were.
+    func keepingViewport(_ change: () throws -> Void) rethrows {
+        let selection = textView.selectedRange()
+        let origin = scrollView.contentView.bounds.origin
+        try change()
+        let length = (textView.string as NSString).length
+        textView.setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
+        scrollView.contentView.scroll(to: origin)
+        scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
     // MARK: Language
