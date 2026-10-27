@@ -9,8 +9,9 @@
 # The private EdDSA key stays out of the repo: by default Sparkle's tools read it from the login
 # Keychain (account "quickedit", made by `generate_keys --account quickedit`). CI passes
 # SPARKLE_KEY_FILE instead, a file holding the exported key (`generate_keys --account quickedit -x <file>`).
-# Release notes: put QuickEdit-<version>.html or .md next to the zip in build/appcast and they're
-# embedded in the feed.
+# Release notes: the version's CHANGELOG.md section (scripts/changelog.sh), written next to the zip as
+# QuickEdit-<version>.md and embedded in the feed, so Sparkle's update window shows it. A
+# QuickEdit-<version>.html or .md already in build/appcast is used instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -53,6 +54,13 @@ if [ ! -f "$OUT/appcast.xml" ] && [ -z "${NEW_FEED:-}" ]; then
   esac
 fi
 cp "$ZIP" "$OUT/"
+NOTES="$OUT/QuickEdit-$VERSION"
+if [ ! -f "$NOTES.html" ] && [ ! -f "$NOTES.md" ]; then
+  scripts/changelog.sh notes "$VERSION" > "$NOTES.md" || {
+    rm -f "$NOTES.md"
+    echo "warning: no CHANGELOG.md section for $VERSION: the update has no release notes" >&2
+  }
+fi
 
 KEY_FLAGS=(--account quickedit)
 if [ -n "${SPARKLE_KEY_FILE:-}" ]; then KEY_FLAGS=(--ed-key-file "$SPARKLE_KEY_FILE"); fi

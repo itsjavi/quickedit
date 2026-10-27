@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Bumps VERSION, commits it and tags the commit vX.Y.Z (the tag release.yml builds).
+# Bumps VERSION, adds the release's CHANGELOG.md section (scripts/changelog.sh), commits both and tags the
+# commit vX.Y.Z (the tag release.yml builds). To reword the notes, run it without --push, edit CHANGELOG.md,
+# `git commit --amend`, `git tag -fa vX.Y.Z` and push.
 #
 #   scripts/bump-version.sh <major|minor|patch|X.Y.Z|X.Y.Z-beta.N> [--push]
 #
@@ -11,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-usage() { sed -n '4,8s/^# \{0,1\}//p' "$0" >&2; exit 64; }
+usage() { sed -n '6,10s/^# \{0,1\}//p' "$0" >&2; exit 64; }
 fail() { echo "✗ $*" >&2; exit 1; }
 
 target="" push=0
@@ -73,7 +75,8 @@ if [ "$push" = 1 ]; then
 fi
 
 echo "$next" > VERSION
-git add VERSION
+scripts/changelog.sh add "$next" >/dev/null
+git add VERSION CHANGELOG.md
 git commit -q -m "chore(release): $tag"
 git tag -a "$tag" -m "QuickEdit $next"
 echo "✓ $current → $next, committed and tagged $tag"

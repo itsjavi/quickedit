@@ -214,7 +214,7 @@ copied from. Decisions live in `backlog/decisions/` (platform, syntax, safe edit
 | `make release`                    | App, zip, DMG and SHA256SUMS in `build/release` (ad-hoc without credentials) |
 | `make build-notarized`            | Same, signed with the Keychain's Developer ID and notarized + stapled        |
 | `make install-notarized`          | Installs the notarized build to /Applications                                |
-| `make bump V=patch [PUSH=1]`      | Bumps VERSION, commits and tags vX.Y.Z; PUSH=1 starts the Release workflow   |
+| `make bump V=patch [PUSH=1]`      | Bumps VERSION, adds its CHANGELOG.md section, tags; PUSH=1 starts Release    |
 | `make appcast`                    | Signs build/release's zip and updates the Sparkle feed in build/appcast      |
 | `make icon`                       | Redraws `Resources/AppIcon.icon` from `scripts/make-icon.swift`              |
 | `make grammars`                   | Re-vendors the tree-sitter grammars pinned in the syntax package lock file   |
@@ -255,8 +255,10 @@ checks the result.
 
 Releases come from GitHub Actions (decision-7, `docs/releasing.md`): `.github/workflows/ci.yml` tests pushes and pull
 requests; pushing a `vX.Y.Z` tag (`make bump V=… PUSH=1`) runs `release.yml`, which tests, signs, notarizes and
-publishes the DMG, zip, SHA256SUMS and Sparkle's `appcast.xml` as a GitHub release. Only tag when the user asks for a
-release. Sparkle's private key lives in the user's Keychain (account `quickedit`) and the `SPARKLE_PRIVATE_KEY`
+publishes the DMG, zip, SHA256SUMS and Sparkle's `appcast.xml` as a GitHub release. The release notes (GitHub and
+Sparkle's update window) are the version's `CHANGELOG.md` section, written by `make bump` from the `feat`, `fix` and
+`perf` commits since the last release (`scripts/changelog.sh`): give user-facing commits subjects that read well in
+that list. Only tag when the user asks for a release. Sparkle's private key lives in the user's Keychain (account `quickedit`) and the `SPARKLE_PRIVATE_KEY`
 secret; agents never read, export or upload secrets.
 
 `make build-notarized` signs with the Keychain's "Developer ID Application" identity (hardened runtime, secure

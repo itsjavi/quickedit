@@ -16,6 +16,18 @@ marks a pre-release as the latest release, so the feed, the website and the READ
 pre-release, name the next version (`make bump V=2.1.0` or `V=2.1.0-beta.2`): `major`, `minor` and `patch` need an
 X.Y.Z `VERSION`.
 
+## Release notes
+
+`make bump` adds the release's section to `CHANGELOG.md` (`scripts/changelog.sh`) and commits it with `VERSION`: the
+Conventional Commits since the previous release (a stable release counts from the previous stable one), grouped as
+breaking changes (`feat!:` or a `BREAKING CHANGE:` footer), features (`feat`), fixes (`fix`) and performance (`perf`).
+Other types (`chore`, `build`, `ci`, `docs`, `refactor`, `style`, `test`) are left out, so write user-facing changes as
+`feat`, `fix` or `perf` with a subject that reads well in a list. That section is the GitHub release's description and,
+embedded in `appcast.xml`, what Sparkle's update window shows.
+
+To reword the notes before releasing: `make bump V=patch` (no `PUSH`), edit `CHANGELOG.md`, `git commit --amend`,
+`git tag -fa vX.Y.Z`, then `git push --atomic origin main vX.Y.Z`.
+
 ## Update feed
 
 Info.plist's `SUFeedURL` is `https://github.com/itsjavi/quickedit/releases/latest/download/appcast.xml`, the feed attached
@@ -66,7 +78,8 @@ builds ad-hoc and lists what's missing. Check a build with `spctl -a -vv build/r
 
 To publish such a build (while the workflow has no secrets), tag without pushing (`make bump V=X.Y.Z`), run
 `make build-notarized` and `make appcast`, push main and the tag, and `gh release create vX.Y.Z` with the DMG, zip,
-`SHA256SUMS` and `build/appcast/appcast.xml`. The workflow still runs for the tag but leaves an existing release alone.
+`SHA256SUMS` and `build/appcast/appcast.xml`, and `--notes-file <(scripts/changelog.sh notes X.Y.Z)`. The workflow
+still runs for the tag but leaves an existing release alone.
 
 `make build-notarized` does the same with the Keychain's Developer ID identity and the `lamina` profile (the same
 Apple ID and team) (override
